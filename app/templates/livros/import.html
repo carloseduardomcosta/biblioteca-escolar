@@ -1,0 +1,17 @@
+<!-- templates/livros/import.html -->
+{% extends 'base.html' %}
+{% block title %}Importar Livros{% endblock %}
+{% block content %}
+<h1>Importar Livros</h1>
+<form action="{{ url_for('livros.importar_livros') }}" method="post" enctype="multipart/form-data">
+  <div class="mb-3">
+    <a href="{{ url_for('livros.download_livros_template') }}" class="btn btn-info mb-3">
+  Baixar Template CSV
+</a>
+    <label for="file" class="form-label">Arquivo CSV</label>
+    <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+  </div>
+  <button type="submit" class="btn btn-success">Importar</button>
+  <a href="{{ url_for('livros.listar_livros') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

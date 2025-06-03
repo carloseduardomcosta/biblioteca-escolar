@@ -1,0 +1,164 @@
+{# templates/manual.html #}
+{% extends 'base.html' %}
+{% block title %}Empréstimos / Devoluções{% endblock %}
+
+{% block content %}
+  <h1 class="mb-4">Registro Manual de Empréstimos / Devoluções</h1>
+
+  <form id="manualForm" class="row g-3 align-items-end">
+    <div class="col-md-6">
+      <label for="codigoAluno" class="form-label">Código do Aluno</label>
+      <input
+        type="text"
+        id="codigoAluno"
+        class="form-control"
+        placeholder="Código do aluno"
+        autocomplete="off"
+        required
+        autofocus
+      />
+    </div>
+    <div class="col-md-6">
+      <label for="codigoLivro" class="form-label">Código do Livro</label>
+      <input
+        type="text"
+        id="codigoLivro"
+        class="form-control"
+        placeholder="Código do livro"
+        autocomplete="off"
+        required
+      />
+    </div>
+    <div class="col-12">
+      <button type="button" id="btnRegistrar" class="btn btn-primary w-100">
+        Registrar Empréstimo / Devolução
+      </button>
+    </div>
+  </form>
+
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <h5>Resumo do Aluno</h5>
+      <div id="alunoInfo" class="p-3 border rounded text-muted">
+        — aguardando código —
+      </div>
+    </div>
+    <div class="col-md-6">
+      <h5>Resumo do Livro</h5>
+      <div id="livroInfo" class="p-3 border rounded text-muted">
+        — aguardando código —
+      </div>
+    </div>
+  </div>
+
+  <div id="result" class="mt-4"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // URLs base
+  const urlObterAluno    = "{{ url_for('emprestimos.obter_aluno_json', codigo='') }}";
+  const urlObterLivro    = "{{ url_for('emprestimos.obter_livro_json', codigo='') }}";
+  const urlCriar         = "{{ url_for('emprestimos.criar_emprestimo') }}";
+  const urlDevolver      = "{{ url_for('emprestimos.registrar_devolucao') }}";
+
+  const inpAluno  = document.getElementById('codigoAluno');
+  const inpLivro  = document.getElementById('codigoLivro');
+  const btn       = document.getElementById('btnRegistrar');
+  const infoA     = document.getElementById('alunoInfo');
+  const infoL     = document.getElementById('livroInfo');
+  const resDiv    = document.getElementById('result');
+
+  // Funções de lookup
+  async function fetchAluno(c) {
+    infoA.innerHTML = 'Carregando…';
+    const r = await fetch(`${urlObterAluno}${c}`);
+    if (!r.ok) {
+      const e = await r.json();
+      return infoA.innerHTML = `<div class="text-danger">⚠ ${e.error}</div>`;
+    }
+    const a = await r.json();
+    const ativos = a.ativos.length
+      ? a.ativos.map(x=>`<span class="badge bg-info text-dark me-1">${x.codigo} — ${x.titulo}</span>`).join('')
+      : '<span class="text-muted">nenhum ativo</span>';
+    infoA.innerHTML = `
+      <p><strong>${a.codigo} — ${a.nome}</strong> — Turma ${a.turma}</p>
+      <p>Ativos: ${ativos}</p>
+    `;
+  }
+
+  async function fetchLivro(c) {
+    infoL.innerHTML = 'Carregando…';
+    const r = await fetch(`${urlObterLivro}${c}`);
+    if (!r.ok) {
+      const e = await r.json();
+      return infoL.innerHTML = `<div class="text-danger">⚠ ${e.error}</div>`;
+    }
+    const l = await r.json();
+    const badge = l.situacao==='disponível'
+      ? '<span class="badge bg-success">disponível</span>'
+      : '<span class="badge bg-warning">emprestado</span>';
+    const extra = l.emprestado_por
+      ? `<p>Emprestado por: <strong>${l.emprestado_por.codigo} — ${l.emprestado_por.nome}</strong></p>`
+      : '';
+    infoL.innerHTML = `
+      <p><strong>${l.codigo} — ${l.titulo}</strong> — ${l.autor}</p>
+      <p>Status: ${badge}</p>
+      ${extra}
+    `;
+  }
+
+  // Eventos de blur/enter
+  inpAluno.addEventListener('blur',()=>{ const v=inpAluno.value.trim(); v&&fetchAluno(v); });
+  inpLivro.addEventListener('blur',()=>{ const v=inpLivro.value.trim(); v&&fetchLivro(v); });
+
+  inpAluno.addEventListener('keyup',e=>{ if(e.key==='Enter'){ e.preventDefault(); fetchAluno(inpAluno.value.trim()); inpLivro.focus(); }});
+  inpLivro.addEventListener('keyup',e=>{ if(e.key==='Enter'){ e.preventDefault(); fetchLivro(inpLivro.value.trim()); }});
+
+  // Registrar ação
+  btn.addEventListener('click', async ()=>{
+    const a = inpAluno.value.trim();
+    const l = inpLivro.value.trim();
+    if (!a || !l) {
+      showToast('warning','Preencha ambos os códigos.');
+      return;
+    }
+    resDiv.innerHTML = '<div class="alert alert-info">Processando…</div>';
+
+    // Tenta criar empréstimo
+    let r = await fetch(urlCriar, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ codigo_aluno: a, codigo_livro: l, dias:7 })
+    });
+
+    if (r.status===201) {
+      showToast('success','Empréstimo registrado!');
+      return reset();
+    }
+    if (r.status===409) {
+      // Livro não disponível → devolução
+      r = await fetch(urlDevolver, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ codigo_livro: l })
+      });
+      if (r.ok) {
+        showToast('success','Devolução registrada!');
+        return reset();
+      }
+    }
+    // Outros erros
+    const e = await r.json();
+    showToast('error', e.error || 'Falha na operação');
+    resDiv.innerHTML = '';
+  });
+
+  function reset(){
+    inpAluno.value = inpLivro.value = '';
+    infoA.innerHTML = infoL.innerHTML = '— aguardando código —';
+    resDiv.innerHTML = '';
+    inpAluno.focus();
+  }
+</script>
+{% endblock %}

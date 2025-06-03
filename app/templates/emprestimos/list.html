@@ -1,0 +1,32 @@
+<!-- templates/emprestimos/list.html -->
+{% extends 'base.html' %}
+{% block title %}Empréstimos{% endblock %}
+{% block content %}
+<h1>Empréstimos</h1>
+<a href="{{ url_for('emprestimos.exibir_scan') }}" class="btn btn-primary mb-3">Novo Empréstimo/Devolução</a>
+<table id="emprestimosTable" class="table table-striped datatable">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Aluno</th>
+      <th>Livro</th>
+      <th>Data Empréstimo</th>
+      <th>Previsão Devolução</th>
+      <th>Data Devolução</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in emprestimos %}
+    <tr>
+      <td>{{ e.id }}</td>
+      <td>{{ e.aluno }}</td>                         {# já vem "0001 — Fulano" #}
+      <td>{{ e.livro }}</td>                        {# já vem "L001 — O Título" #}
+      <td>{{ e.data_emprestimo }}</td>
+      <td>{{ e.data_prevista_devolucao }}</td>
+      <td>{{ e.data_devolucao or '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,37 @@
+<!-- templates/livros/form.html -->
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if livro else 'Novo' }} Livro{% endblock %}
+{% block content %}
+<h1>{{ 'Editar' if livro else 'Novo' }} Livro</h1>
+<form method="post" action="">
+  <div class="mb-3">
+    <label for="codigo" class="form-label">Código</label>
+    <input type="text" class="form-control" id="codigo" name="codigo" value="{{ livro.codigo if livro else '' }}" {{ 'readonly' if livro else '' }} required>
+  </div>
+  <div class="mb-3">
+    <label for="titulo" class="form-label">Título</label>
+    <input type="text" class="form-control" id="titulo" name="titulo" value="{{ livro.titulo if livro else '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="autor" class="form-label">Autor</label>
+    <input type="text" class="form-control" id="autor" name="autor" value="{{ livro.autor if livro else '' }}">
+  </div>
+  <div class="mb-3">
+    <label for="ano_publicacao" class="form-label">Ano de Publicação</label>
+    <input type="number" class="form-control" id="ano_publicacao" name="ano_publicacao" value="{{ livro.ano_publicacao if livro and livro.ano_publicacao else '' }}">
+  </div>
+  <div class="mb-3">
+    <label for="categoria" class="form-label">Categoria</label>
+    <input type="text" class="form-control" id="categoria" name="categoria" value="{{ livro.categoria if livro else '' }}">
+  </div>
+  <div class="mb-3">
+    <label for="situacao" class="form-label">Situação</label>
+    <select class="form-select" id="situacao" name="situacao">
+      <option value="disponível" {{ 'selected' if livro and livro.situacao=='disponível' else '' }}>Disponível</option>
+      <option value="emprestado" {{ 'selected' if livro and livro.situacao=='emprestado' else '' }}>Emprestado</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-success">Salvar</button>
+  <a href="{{ url_for('livros.listar_livros') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

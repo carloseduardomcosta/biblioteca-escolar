@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">Dashboard</h1>
+
+  
+
+  <!-- 2. Cards principais -->
+  <div class="row mb-4">
+    {% for label, valor in [
+         ('Total de Alunos', total_alunos),
+         ('Total de Livros', total_livros),
+         ('Livros Disponíveis', disponiveis),
+         ('Livros Emprestados', emprestados),
+         ('Empréstimos Ativos', ativos),
+         ('Empréstimos Atrasados', atrasados)
+       ] %}
+    <div class="col-lg-4 col-md-6 mb-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <h5 class="card-title">{{ label }}</h5>
+          <p class="card-text display-4">{{ valor }}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- 3. Empréstimos de Hoje e Mensal -->
+  <div class="row mb-4">
+    <div class="col-md-6 mb-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <h5 class="card-title">Empréstimos Hoje</h5>
+          <p class="card-text display-4">{{ emprestimos_hoje }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 mb-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Empréstimos por Mês – {{ ano_atual }}</h5>
+          <canvas id="emprestimosMesChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Gráficos Top Alunos & Top Livros -->
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header">Top 5 Alunos</div>
+        <div class="card-body"><canvas id="topAlunosChart"></canvas></div>
+      </div>
+    </div>
+    <div class="col-md-6 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header">Top 5 Livros</div>
+        <div class="card-body"><canvas id="topLivrosChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const topAlunosLabels = JSON.parse('{{ top_alunos_labels | tojson | safe }}');
+  const topAlunosData   = JSON.parse('{{ top_alunos_data   | tojson | safe }}');
+  const topLivrosLabels = JSON.parse('{{ top_livros_labels | tojson | safe }}');
+  const topLivrosData   = JSON.parse('{{ top_livros_data   | tojson | safe }}');
+  const mesesLabels     = JSON.parse('{{ emprestimos_mes_labels | tojson | safe }}');
+  const mesesData       = JSON.parse('{{ emprestimos_mes_data  | tojson | safe }}');
+
+  new Chart(document.getElementById('topAlunosChart'), {
+    type: 'bar',
+    data: { labels: topAlunosLabels, datasets: [{ label:'Empréstimos', data:topAlunosData, borderWidth:1 }]},
+    options:{responsive:true, scales:{y:{beginAtZero:true}}}
+  });
+
+  new Chart(document.getElementById('topLivrosChart'), {
+    type: 'bar',
+    data: { labels: topLivrosLabels, datasets: [{ label:'Empréstimos', data:topLivrosData, borderWidth:1 }]},
+    options:{responsive:true, scales:{y:{beginAtZero:true}}}
+  });
+
+  new Chart(document.getElementById('emprestimosMesChart'), {
+    type: 'line',
+    data: { labels: mesesLabels, datasets: [{ label:'Empréstimos', data:mesesData, fill:false, tension:0.4 }]},
+    options:{responsive:true, scales:{y:{beginAtZero:true}}}
+  });
+});
+
+$(function(){
+  $('#btnRegisterUser').click(async () => {
+    const newUser   = $('#newUsername').val().trim();
+    const newPass   = $('#newPassword').val();
+    const adminUser = $('#adminUsername').val().trim();
+    const adminPass = $('#adminPassword').val();
+
+    if (!newUser || !newPass || !adminUser || !adminPass) {
+      showToast('error','Preencha todos os campos');
+      return;
+    }
+
+    let payload = {
+      new_username: newUser,
+      new_password: newPass,
+      admin_username: adminUser,
+      admin_password: adminPass
+    };
+
+    try {
+      const res = await fetch("{{ url_for('auth.register') }}", {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (res.status === 201) {
+        showToast('success', data.message);
+        $('#registerModal').modal('hide');
+        $('#registerForm')[0].reset();
+      } else {
+        showToast('error', data.error || 'Erro ao cadastrar');
+      }
+    } catch (err) {
+      showToast('error','Erro de comunicação');
+    }
+  });
+});
+
+
+
+</script>
+{% endblock %}

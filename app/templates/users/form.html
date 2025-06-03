@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}
+  {% if action=='criar' %}Criar Usuário{% else %}Editar Usuário{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-4">
+    <h1 class="mb-4">
+      {% if action=='criar' %}Novo Usuário{% else %}Editar Usuário{% endif %}
+    </h1>
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label">Username</label>
+        <input
+          type="text"
+          name="username"
+          class="form-control"
+          value="{{ user.username if action=='editar' else '' }}"
+          required
+        >
+      </div>
+      <div class="mb-3">
+        <label class="form-label">
+          Senha {% if action=='editar' %}(deixe em branco para não alterar){% endif %}
+        </label>
+        <input
+          type="password"
+          name="password"
+          class="form-control"
+          {% if action=='criar' %}required{% endif %}
+        >
+      </div>
+      <button type="submit" class="btn btn-primary w-100">
+        {% if action=='criar' %}Criar{% else %}Salvar alterações{% endif %}
+      </button>
+      <a href="{{ url_for('users.listar_usuarios') }}"
+         class="btn btn-link mt-2 d-block text-center">
+        Voltar à lista
+      </a>
+    </form>
+  </div>
+</div>
+{% endblock %}

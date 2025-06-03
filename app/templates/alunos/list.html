@@ -1,0 +1,72 @@
+<!-- templates/alunos/list.html -->
+{% extends 'base.html' %}
+{% block title %}Alunos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1>Alunos</h1>
+  <div>
+    <a href="{{ url_for('alunos.novo_aluno') }}" class="btn btn-primary me-2">Novo Aluno</a>
+    <a href="{{ url_for('alunos.importar_alunos_form') }}" class="btn btn-secondary me-2">Importar CSV</a>
+    <a href="{{ url_for('alunos.exportar_alunos_pdf') }}" class="btn btn-outline-secondary">Exportar PDF de Barcodes</a>
+  </div>
+</div>
+
+<table id="alunosTable" class="table table-striped datatable">
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Nome</th>
+      <th>Turma</th>
+      <th>Barcode</th>
+      <th>Com Livros</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for aluno in alunos %}
+    <tr>
+      <!-- 1 -->
+      <td>{{ aluno.codigo }}</td>
+      <!-- 2 -->
+      <td>{{ aluno.nome }}</td>
+      <!-- 3 -->
+      <td>{{ aluno.turma }}</td>
+      <!-- 4 -->
+      <td>
+        <img
+          src="{{ url_for('static', filename='barcodes/' ~ aluno.barcode_img) }}"
+          alt="Barcode {{ aluno.codigo }}"
+          style="height:40px"
+        >
+      </td>
+      <!-- 5 -->
+      <td>
+        {% if aluno.livros_ativos %}
+          {% for cod in aluno.livros_ativos %}
+            <span class="badge bg-info text-dark">{{ cod }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </td>
+      <!-- 6 -->
+      <td>
+        <a
+          href="{{ url_for('alunos.editar_aluno', codigo=aluno.codigo) }}"
+          class="btn btn-sm btn-warning me-1"
+        >Editar</a>
+        <form
+          action="{{ url_for('alunos.deletar_aluno', codigo=aluno.codigo) }}"
+          method="post"
+          class="d-inline"
+          onsubmit="return confirm('Confirma exclusão deste aluno?');"
+        >
+          <button class="btn btn-sm btn-danger">Excluir</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

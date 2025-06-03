@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Biblioteca Escolar{% endblock %}</title>
+
+  <!-- favicon padrão -->
+<link 
+  rel="icon" 
+  type="image/x-icon" 
+  href="{{ url_for('static', filename='favicon.ico') }}"
+/>
+
+ 
+
+
+  <!-- Google Font + Bootstrap + DataTables + Toastr + FontAwesome -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet"/>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .navbar { background: #fff; }
+    .btn-gradient {
+      background: linear-gradient(135deg,#0052d4,#4364f7,#6fb1fc);
+      color: #fff;
+    }
+    .btn-gradient:hover { opacity: .9; }
+  </style>
+</head>
+<body class="bg-light">
+
+  <!-- Navbar fixa -->
+  <nav class="navbar navbar-expand-lg navbar-white shadow-sm py-3 sticky-top">
+    <div class="container">
+      <!-- Marca -->
+      <a class="navbar-brand d-flex align-items-center fw-bold" href="{{ url_for('dashboard') }}">
+        <i class="fa-solid fa-book fa-lg text-primary me-2"></i>
+        <span class="h5 mb-0">Biblioteca</span>
+      </a>
+
+      <!-- Toggle mobile -->
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+
+      <div class="collapse navbar-collapse" id="mainNav">
+        <!-- Menu principal -->
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link {% if request.path.startswith('/alunos') %}active{% endif %}" href="{{ url_for('alunos.listar_alunos_html') }}">
+              <i class="fa-solid fa-user-graduate me-1"></i>Alunos
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.path.startswith('/livros') %}active{% endif %}" href="{{ url_for('livros.listar_livros') }}">
+              <i class="fa-solid fa-book-open me-1"></i>Livros
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.path.startswith('/emprestimos') %}active{% endif %}" href="{{ url_for('emprestimos.listar_emprestimos_html') }}">
+              <i class="fa-solid fa-book-reader me-1"></i>Empréstimos
+            </a>
+          </li>
+          <!-- Botão destacado -->
+          <li class="nav-item ms-3">
+            <a href="{{ url_for('emprestimos.exibir_scan') }}"
+               class="btn btn-gradient rounded-pill px-4 py-2 {% if request.path.startswith('/emprestimos/scan') %}shadow{% endif %}">
+              <i class="fa-solid fa-plus-circle me-2"></i>Novo Empréstimo
+            </a>
+          </li>
+        </ul>
+
+        <!-- Perfil / Logout -->
+        <ul class="navbar-nav ms-auto align-items-center">
+          {% if current_user.is_authenticated %}
+            <!-- Saudação -->
+            <li class="nav-item me-3">
+              <span class="text-muted small">
+                Olá, <strong>{{ current_user.username|capitalize }}</strong>
+              </span>
+            </li>
+            <!-- Engrenagem -->
+            <li class="nav-item dropdown me-3">
+              <a class="nav-link text-dark" href="#" id="settingsDropdown" role="button"
+                 data-bs-toggle="dropdown">
+                <i class="fa-solid fa-cog fa-lg"></i>
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                <li>
+                  <a class="dropdown-item" href="{{ url_for('users.listar_usuarios') }}">
+                    <i class="fa-solid fa-users me-2"></i>Gestão de Usuários
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                    <i class="fa-solid fa-right-from-bracket me-2"></i>Sair
+                  </a>
+                </li>
+              </ul>
+            </li>
+          {% else %}
+            <li class="nav-item">
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('auth.login') }}">
+                <i class="fa-solid fa-right-to-bracket me-1"></i>Entrar
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Container principal -->
+  <main class="container my-5">
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+   <!-- ... jQuery, Bootstrap, DataTables, Toastr ... -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+  <!-- jQuery UI: precisa vir antes de qualquer chamada a .autocomplete() -->
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+  <link
+    rel="stylesheet"
+    href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css"
+/>
+  
+  
+  
+  <script>
+
+  $(function(){
+    $('.datatable').DataTable({
+      responsive: true,
+      language: {
+        url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'
+      }
+    });
+  });
+
+  // Função toast com som (opcional)
+  function showToast(type, msg) {
+    toastr[type](msg);
+    if (type === 'success') {
+      const snd = document.getElementById('toastSound');
+      snd?.play().catch(()=>{});
+    }
+  }
+    
+  </script>
+
+  <!-- Scripts específicos -->
+  {% block scripts %}{% endblock %}
+</body>
+</html>

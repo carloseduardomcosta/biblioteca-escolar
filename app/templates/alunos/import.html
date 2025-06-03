@@ -1,0 +1,21 @@
+<!-- templates/alunos/import.html -->
+{% extends 'base.html' %}
+{% block title %}Importar Alunos{% endblock %}
+{% block content %}
+<h1>Importar Alunos</h1>
+<form action="{{ url_for('alunos.importar_alunos') }}" method="post" enctype="multipart/form-data">
+  <div class="mb-3">
+    <a href="{{ url_for('alunos.download_alunos_template') }}" class="btn btn-info mb-3">
+    Baixar Template CSV
+  </a>
+    <label for="file" class="form-label">Arquivo CSV</label>
+      
+    <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+  </div>
+  <button type="submit" class="btn btn-success">Importar</button>
+
+
+
+  <a href="{{ url_for('alunos.listar_alunos') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

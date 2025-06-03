@@ -1,0 +1,46 @@
+<!-- templates/livros/list.html -->
+{% extends 'base.html' %}
+{% block title %}Livros{% endblock %}
+{% block content %}
+<h1>Livros</h1>
+<div class="mb-3">
+  <a href="{{ url_for('livros.novo_livro') }}" class="btn btn-primary me-2">Novo Livro</a>
+  <a href="{{ url_for('livros.importar_livros_form') }}" class="btn btn-secondary">Importar CSV</a>
+  <a href="{{ url_for('livros.exportar_livros_pdf') }}"class="btn btn-outline-secondary mb-3">Exportar PDF de Barcodes
+</a>
+</div>
+
+
+<table id="livrosTable" class="table table-striped datatable">
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Título</th>
+      <th>Autor</th>
+      <th>Ano</th>
+      <th>Categoria</th>
+      <th>Situação</th>
+      <th>Barcode</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for livro in livros %}
+    <tr>
+      <td>{{ livro.codigo }}</td>
+      <td>{{ livro.titulo }}</td>
+      <td>{{ livro.autor }}</td>
+      <td>{{ livro.ano_publicacao or '' }}</td>
+      <td>{{ livro.categoria }}</td>
+      <td>{{ livro.situacao }}</td>
+      <td>
+  <img src="{{ url_for('static', filename='barcodes/' ~ livro.barcode_img) }}"alt="Barcode {{ livro.codigo }}"height="50"></td>
+      <td>
+        <a href="{{ url_for('livros.editar_livro', codigo=livro.codigo) }}" class="btn btn-sm btn-warning">Editar</a>
+        <a href="{{ url_for('livros.deletar_livro', codigo=livro.codigo) }}" class="btn btn-sm btn-danger">Excluir</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

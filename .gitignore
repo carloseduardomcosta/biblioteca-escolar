@@ -1,0 +1,16 @@
+# Ignorar ambientes virtuais e caches do Python
+venv/
+__pycache__/
+*.pyc
+
+# Ignorar arquivos de configuração sensíveis
+.env
+
+# Ignorar volumes e dados do Docker
+mysql_data/
+grafana_data/
+protheus_data/   # caso use algum volume para Prometheus
+
+# Ignorar IDEs / editores
+.vscode/
+*.log

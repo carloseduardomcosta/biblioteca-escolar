@@ -1,0 +1,22 @@
+<!-- templates/alunos/form.html -->
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if aluno else 'Novo' }} Aluno{% endblock %}
+{% block content %}
+<h1>{{ 'Editar' if aluno else 'Novo' }} Aluno</h1>
+<form method="post" action="">
+  <div class="mb-3">
+    <label for="codigo" class="form-label">Código</label>
+    <input type="text" class="form-control" id="codigo" name="codigo" value="{{ aluno.codigo if aluno else '' }}" {{ 'readonly' if aluno else '' }} required>
+  </div>
+  <div class="mb-3">
+    <label for="nome" class="form-label">Nome</label>
+    <input type="text" class="form-control" id="nome" name="nome" value="{{ aluno.nome if aluno else '' }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="turma" class="form-label">Turma</label>
+    <input type="text" class="form-control" id="turma" name="turma" value="{{ aluno.turma if aluno else '' }}">
+  </div>
+  <button type="submit" class="btn btn-success">Salvar</button>
+  <a href="{{ url_for('alunos.listar_alunos') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

@@ -1,0 +1,221 @@
+{# templates/scan.html #}
+{% extends 'base.html' %}
+
+{% block title %}Empréstimos / Devoluções{% endblock %}
+
+{% block content %}
+  <h1 class="mb-4">Registro de Empréstimo e Devolução</h1>
+
+  <div class="btn-group mb-4" role="group">
+    <button id="btnModoEmprestimo" type="button" class="btn btn-primary">Empréstimo</button>
+    <button id="btnModoDevolucao"  type="button" class="btn btn-outline-primary">Devolução</button>
+  </div>
+
+  <form id="scanForm" class="row g-3 align-items-end">
+    <div class="col-md-6" id="campoAluno">
+      <label for="codigoAluno" class="form-label">Aluno</label>
+      <input type="text" id="codigoAluno" class="form-control"
+             placeholder="Parte do nome ou código" autocomplete="off" />
+    </div>
+    <div class="col-md-6">
+      <label for="codigoLivro" class="form-label">Livro</label>
+      <input type="text" id="codigoLivro" class="form-control"
+             placeholder="Parte do título ou código" autocomplete="off" />
+    </div>
+    <div class="col-12">
+      <button type="button" id="btnRegistrar" class="btn btn-success w-100">
+        Registrar Empréstimo
+      </button>
+    </div>
+  </form>
+
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <h5>Resumo do Aluno</h5>
+      <div id="alunoInfo" class="p-3 border rounded text-muted">— aguardando código —</div>
+    </div>
+    <div class="col-md-6">
+      <h5>Resumo do Livro</h5>
+      <div id="livroInfo" class="p-3 border rounded text-muted">— aguardando código —</div>
+    </div>
+  </div>
+
+  <div id="result" class="mt-4"></div>
+
+  <!-- Modal para data prevista -->
+  <div class="modal fade" id="emprestimoModal" tabindex="-1" aria-labelledby="emprestimoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="emprestimoModalLabel">Data Prevista de Devolução</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <label for="dataPrevistaInput" class="form-label">Escolha a data:</label>
+          <input type="date" id="dataPrevistaInput" class="form-control" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="confirmarEmprestimo">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function(){
+  // URLs do backend
+  const urlAutoAlunos   = "{{ url_for('emprestimos.autocomplete_alunos') }}";
+  const urlAutoLivros   = "{{ url_for('emprestimos.autocomplete_livros') }}";
+  const urlCriar        = "{{ url_for('emprestimos.criar_emprestimo') }}";
+  const urlDevolver     = "{{ url_for('emprestimos.registrar_devolucao') }}";
+  const urlObterAluno   = "{{ url_for('emprestimos.obter_aluno_json', codigo='') }}";
+  const urlObterLivro   = "{{ url_for('emprestimos.obter_livro_json', codigo='') }}";
+
+  // Modo padrão
+  let modo = 'emprestimo';
+  const $campoA = $('#campoAluno'),
+        $btnE   = $('#btnModoEmprestimo'),
+        $btnD   = $('#btnModoDevolucao'),
+        $btnR   = $('#btnRegistrar'),
+        $inpA   = $('#codigoAluno'),
+        $inpL   = $('#codigoLivro'),
+        $infoA  = $('#alunoInfo'),
+        $infoL  = $('#livroInfo'),
+        $res    = $('#result');
+
+  // Modal Bootstrap e variáveis pendentes
+  const emprestimoModal = new bootstrap.Modal(document.getElementById('emprestimoModal'));
+  let pendingAluno, pendingLivro;
+
+  // Listener do botão Confirmar no modal
+  $('#confirmarEmprestimo').click(async () => {
+    const dataPrev = $('#dataPrevistaInput').val();
+    emprestimoModal.hide();
+    $res.html('<div class="alert alert-info">Processando…</div>');
+
+    const body = {
+      codigo_aluno: pendingAluno,
+      codigo_livro: pendingLivro,
+      data_prevista: dataPrev
+    };
+    const r = await fetch(urlCriar, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+
+    if (r.status === 201) {
+      showToast('success','Empréstimo registrado');
+      limpar();
+    } else {
+      const e = await r.json();
+      showToast('error', e.error || 'Erro');
+      $res.empty();
+    }
+  });
+
+  // Função para alternar modo
+  function setModo(m){
+    modo = m;
+    if (m==='emprestimo') {
+      $campoA.show();
+      $btnE.addClass('btn-primary').removeClass('btn-outline-primary');
+      $btnD.addClass('btn-outline-primary').removeClass('btn-primary');
+      $btnR.text('Registrar Empréstimo').removeClass('btn-warning').addClass('btn-success');
+    } else {
+      $campoA.hide();
+      $btnD.addClass('btn-primary').removeClass('btn-outline-primary');
+      $btnE.addClass('btn-outline-primary').removeClass('btn-primary');
+      $btnR.text('Registrar Devolução').removeClass('btn-success').addClass('btn-warning');
+    }
+    limpar();
+  }
+
+  $btnE.click(()=> setModo('emprestimo'));  $btnD.click(()=> setModo('devolucao'));
+  setModo('emprestimo');
+
+  // Autocomplete Alunos
+  $inpA.autocomplete({
+    source(req, resp){ $.getJSON(urlAutoAlunos,{ term:req.term }, data=> resp(data.map(i=>({ label:`${i.codigo} — ${i.nome}`, value:i.codigo }))) ); },
+    minLength:1,
+    select(_,ui){ $inpA.val(ui.item.value); buscarAluno(ui.item.value); return false; }
+  });
+
+  // Autocomplete Livros
+  $inpL.autocomplete({
+    source(req, resp){ $.getJSON(urlAutoLivros,{ term:req.term }, data=> resp(data.map(i=>({ label:`${i.codigo} — ${i.titulo}`, value:i.codigo }))) ); },
+    minLength:1,
+    select(_,ui){ $inpL.val(ui.item.value); buscarLivro(ui.item.value); return false; }
+  });
+
+  // Funções blur para buscar via API
+  $inpA.blur(()=>{ const v=$inpA.val().split('—')[0].trim(); v&&buscarAluno(v); });
+  $inpL.blur(()=>{ const v=$inpL.val().split('—')[0].trim(); v&&buscarLivro(v); });
+
+  // buscas
+  async function buscarAluno(c){
+    $infoA.text('Carregando…');
+    const r = await fetch(`${urlObterAluno}${c}`);
+    if (!r.ok) return $infoA.html('<div class="text-danger">Aluno não encontrado</div>');
+    const a = await r.json();
+    const badges = a.ativos.length
+      ? a.ativos.map(x=>`<span class="badge bg-info text-dark me-1">${x.codigo} — ${x.titulo}</span>`).join('')
+      : '<span class="text-muted">nenhum ativo</span>';
+    $infoA.html(`
+      <p><strong>${a.codigo} — ${a.nome}</strong> — Turma ${a.turma}</p>
+      <p>Ativos: ${badges}</p>
+    `);
+  }
+
+  async function buscarLivro(c){
+    $infoL.text('Carregando…');
+    const r = await fetch(`${urlObterLivro}${c}`);
+    if (!r.ok) return $infoL.html('<div class="text-danger">Livro não encontrado</div>');
+    const l = await r.json();
+    const cls = l.situacao==='disponível' ? 'bg-success' : 'bg-warning';
+    const extra = l.emprestado_por
+      ? `<p>Emprestado para: <strong>${l.emprestado_por.codigo} — ${l.emprestado_por.nome}</strong></p>`
+      : '';
+    $infoL.html(`
+      <p><strong>${l.codigo} — ${l.titulo}</strong> — ${l.autor}</p>
+      <p>Status: <span class="badge ${cls}">${l.situacao}</span></p>
+      ${extra}
+    `);
+  }
+
+  // Handler botão principal
+  $btnR.click(async ()=>{
+    const a = $inpA.val().trim(), l = $inpL.val().trim();
+    if (modo==='emprestimo' && !a) { showToast('warning','Selecione um aluno'); return; }
+    if (!l)                   { showToast('warning','Selecione um livro'); return; }
+    $res.html('<div class="alert alert-info">Processando…</div>');
+
+    if (modo==='emprestimo') {
+      // abre modal para data
+      pendingAluno = a; pendingLivro = l;
+      $('#dataPrevistaInput').val(new Date().toISOString().split('T')[0]);
+      emprestimoModal.show();
+    } else {
+      // devolução
+      const r = await fetch(urlDevolver,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({codigo_livro:l})
+      });
+      if (r.ok) { showToast('success','Devolução registrada'); limpar(); }
+      else      { const e=await r.json(); showToast('error',e.error); $res.empty(); }
+    }
+  });
+
+  // reset
+  function limpar(){
+    $inpA.val(''); $inpL.val('');
+    $infoA.html('— aguardando código —');
+    $infoL.html('— aguardando código —');
+    $res.empty(); $inpA.focus();
+  }
+});
+</script>
+{% endblock %}

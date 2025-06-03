@@ -1,0 +1,11 @@
+Flask>=2.2
+SQLAlchemy>=2.0
+mysql-connector-python>=8.0
+python-dotenv>=1.0
+python-barcode[pillow]>=0.14
+Pillow>=9.0
+reportlab>=3.6.0
+Flask-WTF
+flask-login
+bcrypt
+gunicorn
