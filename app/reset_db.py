@@ -1,5 +1,6 @@
 # reset_db.py
 from config.settings import engine, Base
+import models.escola
 import models.aluno
 import models.livro
 import models.emprestimo

@@ -64,36 +64,5 @@ def logout():
     logout_user()
     return redirect(url_for('auth.login'))
 
-
-@bp.route('/register', methods=['POST'])
-def register():
-    """Registra novo usuário apenas se admin autenticado."""
-    dados = request.get_json() or {}
-    nu = dados.get('new_username', '').strip()
-    np = dados.get('new_password', '')
-    au = dados.get('admin_username', '').strip()
-    ap = dados.get('admin_password', '')
-
-    if not all([nu, np, au, ap]):
-        return jsonify(error='Todos os campos são obrigatórios'), 400
-
-    with SessionLocal() as db:
-        # 1. Valida admin
-        admin = db.query(Usuario).filter_by(username=au).first()
-        if not admin or not check_password_hash(admin.password_hash, ap):
-            return jsonify(error='Credenciais de admin inválidas'), 401
-
-        # 2. Verifica se novo usuário já existe
-        exists = db.query(Usuario).filter_by(username=nu).first()
-        if exists:
-            return jsonify(error='Usuário já existe'), 409
-
-        # 3. Cria novo usuário
-        novo = Usuario(
-            username=nu,
-            password_hash=generate_password_hash(np)
-        )
-        db.add(novo)
-        db.commit()
-
-    return jsonify(message=f'Usuário "{nu}" registrado com sucesso'), 201# teste
+# NOTA: o antigo endpoint público /auth/register foi REMOVIDO por segurança.
+# A criação de usuários agora é feita apenas na área logada, em /usuarios/criar.

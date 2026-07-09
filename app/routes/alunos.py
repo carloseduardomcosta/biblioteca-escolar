@@ -1,11 +1,13 @@
-# routes/alunos.py (adições para importação em massa)
+# routes/alunos.py (multi-tenant: tudo escopado por escola_id do usuário logado)
 from sqlalchemy import func, and_
 from models.livro import Livro
 from models.emprestimo import Emprestimo
 from flask import Blueprint, request, render_template, redirect, url_for, flash, current_app, Response
+from flask_login import current_user
 from config.settings import SessionLocal
 from models.aluno import Aluno
 from utils.barcode import gerar_barcode
+from utils.planilha import linhas_planilha
 import os, csv, io
 from flask import current_app, send_file
 from reportlab.lib.pagesizes import A4
@@ -18,6 +20,12 @@ bp = Blueprint(
     template_folder='templates/alunos',
     url_prefix='/alunos'
 )
+
+
+def _escola_id():
+    """Escola do usuário logado — chave de isolamento multi-tenant."""
+    return current_user.escola_id
+
 
 @bp.route('/listar', methods=['GET'])
 def listar_alunos_html():
@@ -40,6 +48,7 @@ def listar_alunos_html():
                 )
             )
             .outerjoin(Livro, Emprestimo.livro_id == Livro.id)
+            .filter(Aluno.escola_id == _escola_id())
             .group_by(Aluno.id)
             .all()
         )
@@ -60,16 +69,23 @@ def listar_alunos_html():
 
 @bp.route('/template', methods=['GET'])
 def download_alunos_template():
-    """Retorna CSV com cabeçalho de exemplo para importação"""
-    headers = ['codigo', 'nome', 'turma']
+    """Baixa o modelo de alunos (.xlsx com instruções); fallback CSV se faltar."""
+    xlsx = os.path.join(current_app.static_folder, 'modelo-alunos.xlsx')
+    if os.path.isfile(xlsx):
+        return send_file(
+            xlsx,
+            as_attachment=True,
+            download_name='modelo-alunos.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
     si = io.StringIO()
     writer = csv.writer(si)
-    writer.writerow(headers)
-    csv_data = si.getvalue()
+    writer.writerow(['codigo', 'nome', 'turma'])
+    writer.writerow(['12345', 'Nome do Aluno', '5º Ano A'])
     return Response(
-        csv_data,
+        si.getvalue(),
         mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=alunos_template.csv'}
+        headers={'Content-Disposition': 'attachment; filename=modelo-alunos.csv'}
     )
 
 
@@ -80,46 +96,69 @@ def importar_alunos_form():
 
 @bp.route('/importar', methods=['POST'])
 def importar_alunos():
-    """Processa o CSV e cadastra alunos em massa"""
+    """Processa a planilha (.xlsx ou CSV) e cadastra alunos em massa (na escola do usuário).
+    O 'codigo' é a MATRÍCULA (mesmo número do cartão da merenda) — é o que o bipador lê."""
     file = request.files.get('file')
-    if not file:
+    if not file or not (file.filename or '').strip():
         flash('Nenhum arquivo selecionado.', 'warning')
         return redirect(url_for('alunos.importar_alunos_form'))
 
-    stream = file.stream.read().decode('utf-8').splitlines()
-    reader = csv.DictReader(stream)
-    total, created, skipped = 0, 0, 0
+    escola_id = _escola_id()
     pasta = os.path.join(current_app.static_folder, 'barcodes')
     os.makedirs(pasta, exist_ok=True)
 
+    total = created = 0
+    pulos_sem_dados = []   # linhas sem codigo/nome
+    pulos_dup = []         # matrículas duplicadas
+    vistos = set()
+
+    try:
+        linhas = list(linhas_planilha(file))
+    except Exception:
+        flash('Não consegui ler o arquivo. Envie um .xlsx ou CSV válido (use o modelo).', 'danger')
+        return redirect(url_for('alunos.importar_alunos_form'))
+
     with SessionLocal() as db:
-        for row in reader:
+        for row in linhas:
             total += 1
-            codigo = row.get('codigo','').strip()
-            nome   = row.get('nome','').strip()
-            turma  = row.get('turma','').strip()
+            codigo = str(row.get('codigo', '')).strip()
+            nome   = str(row.get('nome', '')).strip()
+            turma  = str(row.get('turma', '')).strip()
+
             if not codigo or not nome:
-                skipped += 1
+                pulos_sem_dados.append(total)
                 continue
-            if db.query(Aluno).filter_by(codigo=codigo).first():
-                skipped += 1
+            if codigo in vistos:
+                pulos_dup.append(codigo)
                 continue
-            # gerar barcode
+            if db.query(Aluno).filter_by(escola_id=escola_id, codigo=codigo).first():
+                pulos_dup.append(codigo)
+                continue
+
+            vistos.add(codigo)
+            # gera barcode da matrícula (útil p/ quem NÃO usa o cartão da merenda)
             arquivo = gerar_barcode(codigo, pasta)
-            aluno = Aluno(codigo=codigo, nome=nome, turma=turma, barcode_img=arquivo)
-            db.add(aluno)
+            db.add(Aluno(escola_id=escola_id, codigo=codigo, nome=nome,
+                         turma=turma, barcode_img=arquivo))
             created += 1
         db.commit()
 
-    flash(f'Total: {total}, Criados: {created}, Pulos: {skipped}', 'info')
+    flash(f'✅ Importação: {total} linha(s) lida(s), {created} aluno(s) cadastrado(s).',
+          'success' if created else 'info')
+    if pulos_dup:
+        amostra = ', '.join(pulos_dup[:10]) + ('…' if len(pulos_dup) > 10 else '')
+        flash(f'⚠️ {len(pulos_dup)} matrícula(s) já existente(s)/duplicada(s), ignorada(s): {amostra}', 'warning')
+    if pulos_sem_dados:
+        amostra = ', '.join(map(str, pulos_sem_dados[:10])) + ('…' if len(pulos_sem_dados) > 10 else '')
+        flash(f'⚠️ {len(pulos_sem_dados)} linha(s) sem matrícula ou nome, ignorada(s) (nº da linha): {amostra}', 'warning')
     return redirect(url_for('alunos.listar_alunos'))
 
 
 @bp.route('/', methods=['GET'])
 def listar_alunos():
-    """Lista todos os alunos"""
+    """Lista todos os alunos da escola"""
     with SessionLocal() as db:
-        alunos = db.query(Aluno).all()
+        alunos = db.query(Aluno).filter_by(escola_id=_escola_id()).all()
     return render_template('alunos/list.html', alunos=alunos)
 
 @bp.route('/novo', methods=['GET', 'POST'])
@@ -138,7 +177,8 @@ def novo_aluno():
         os.makedirs(pasta, exist_ok=True)
         arquivo = gerar_barcode(codigo, pasta)
 
-        aluno = Aluno(codigo=codigo, nome=nome, turma=turma, barcode_img=arquivo)
+        aluno = Aluno(escola_id=_escola_id(), codigo=codigo, nome=nome,
+                      turma=turma, barcode_img=arquivo)
         with SessionLocal() as db:
             db.add(aluno)
             try:
@@ -155,7 +195,7 @@ def novo_aluno():
 def editar_aluno(codigo):
     """Form e atualização de aluno existente"""
     with SessionLocal() as db:
-        aluno = db.query(Aluno).filter_by(codigo=codigo).first()
+        aluno = db.query(Aluno).filter_by(codigo=codigo, escola_id=_escola_id()).first()
     if not aluno:
         flash('Aluno não encontrado.', 'warning')
         return redirect(url_for('alunos.listar_alunos'))
@@ -171,11 +211,11 @@ def editar_aluno(codigo):
 
     return render_template('alunos/form.html', aluno=aluno)
 
-@bp.route('/<string:codigo>/deletar', methods=['GET'])
+@bp.route('/<string:codigo>/deletar', methods=['POST'])
 def deletar_aluno(codigo):
     """Deleta um aluno pelo código"""
     with SessionLocal() as db:
-        aluno = db.query(Aluno).filter_by(codigo=codigo).first()
+        aluno = db.query(Aluno).filter_by(codigo=codigo, escola_id=_escola_id()).first()
         if aluno:
             db.delete(aluno)
             db.commit()
@@ -190,10 +230,10 @@ def exportar_alunos_pdf():
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfgen import canvas
     import io, os
-    """Gera um PDF com os barcodes de todos os alunos."""
-    # 1) Busca todos os alunos
+    """Gera um PDF com os barcodes de todos os alunos da escola."""
+    # 1) Busca os alunos da escola
     with SessionLocal() as db:
-        alunos = db.query(Aluno).all()
+        alunos = db.query(Aluno).filter_by(escola_id=_escola_id()).all()
 
     # 2) Prepara buffer em memória
     buffer = io.BytesIO()
@@ -212,6 +252,8 @@ def exportar_alunos_pdf():
 
     # 4) Desenha cada código
     for idx, aluno in enumerate(alunos):
+        if not aluno.barcode_img:
+            continue
         # caminho absoluto do arquivo gerado
         img_path = os.path.join(current_app.static_folder, 'barcodes', aluno.barcode_img)
         if not os.path.isfile(img_path):

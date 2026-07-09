@@ -7,11 +7,13 @@ class Emprestimo(Base):
     __tablename__ = 'emprestimo'
 
     id                      = Column(Integer, primary_key=True, index=True)
+    escola_id               = Column(Integer, ForeignKey('escola.id'), nullable=False, index=True)
     aluno_id                = Column(Integer, ForeignKey('aluno.id'), nullable=False)
     livro_id                = Column(Integer, ForeignKey('livro.id'), nullable=False)
     data_emprestimo         = Column(Date, nullable=False)
     data_prevista_devolucao = Column(Date, nullable=False)
     data_devolucao          = Column(Date, nullable=True)
 
+    escola = relationship("Escola", back_populates="emprestimos")
     aluno = relationship("Aluno", back_populates="emprestimos")
     livro = relationship("Livro", back_populates="emprestimos")

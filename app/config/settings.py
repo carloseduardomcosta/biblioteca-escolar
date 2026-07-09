@@ -13,9 +13,11 @@ load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 # engine SQLAlchemy
+# echo controlado por env; DESLIGADO por padrão (SQL_ECHO=1 liga em dev).
+# Ligado, vaza SQL e parâmetros (incl. hashes) para os logs — não usar em produção.
 engine = create_engine(
     DATABASE_URL,
-    echo=True,        # mostra SQL no console (útil em dev)
+    echo=os.getenv('SQL_ECHO', '0') == '1',
     future=True       # API 2.0 style
 )
 

@@ -31,6 +31,18 @@
           {% if action=='criar' %}required{% endif %}
         >
       </div>
+      <div class="form-check mb-3">
+        <input
+          type="checkbox"
+          name="is_admin"
+          id="is_admin"
+          class="form-check-input"
+          {% if action=='editar' and user.is_admin %}checked{% endif %}
+        >
+        <label class="form-check-label" for="is_admin">
+          Administrador (pode gerenciar usuários)
+        </label>
+      </div>
       <button type="submit" class="btn btn-primary w-100">
         {% if action=='criar' %}Criar{% else %}Salvar alterações{% endif %}
       </button>

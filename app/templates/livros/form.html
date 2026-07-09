@@ -25,6 +25,14 @@
     <input type="text" class="form-control" id="categoria" name="categoria" value="{{ livro.categoria if livro else '' }}">
   </div>
   <div class="mb-3">
+    <label for="politica" class="form-label">Grupo (bolinha)</label>
+    <select class="form-select" id="politica" name="politica">
+      <option value="emprestavel" {{ 'selected' if not livro or livro.politica=='emprestavel' else '' }}>🟢 Pode levar pra casa</option>
+      <option value="consulta" {{ 'selected' if livro and livro.politica=='consulta' else '' }}>🟡 Só na biblioteca</option>
+      <option value="restrito" {{ 'selected' if livro and livro.politica=='restrito' else '' }}>🔴 Não empresta (professor)</option>
+    </select>
+  </div>
+  <div class="mb-3">
     <label for="situacao" class="form-label">Situação</label>
     <select class="form-select" id="situacao" name="situacao">
       <option value="disponível" {{ 'selected' if livro and livro.situacao=='disponível' else '' }}>Disponível</option>

@@ -34,11 +34,15 @@
       <td>{{ aluno.turma }}</td>
       <!-- 4 -->
       <td>
+        {% if aluno.barcode_img %}
         <img
           src="{{ url_for('static', filename='barcodes/' ~ aluno.barcode_img) }}"
           alt="Barcode {{ aluno.codigo }}"
           style="height:40px"
         >
+        {% else %}
+          <small class="text-muted">cartão da merenda</small>
+        {% endif %}
       </td>
       <!-- 5 -->
       <td>

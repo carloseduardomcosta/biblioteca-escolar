@@ -5,7 +5,7 @@
 # compose mudar, derruba e sobe tudo de novo em background
 
 # diretórios a observar (ajuste conforme seu layout)
-WATCH_DIRS=(app grafana mysql protheus)
+WATCH_DIRS=(app mysql)
 
 # padrões de arquivo
 EXTENSIONS="\.py|\.html|\.env|Dockerfile|docker-compose\.yml$"
@@ -27,10 +27,10 @@ do
   sleep $DEBOUNCE_SEC
 
   echo "🔴 Parando stack…"
-  docker-compose down
+  docker compose down
 
   echo "🟢 Build & up em background…"
-  docker-compose up -d --build
+  docker compose up -d --build
 
   echo "✅ Pronto! Containers rodando em segundo plano."
 done

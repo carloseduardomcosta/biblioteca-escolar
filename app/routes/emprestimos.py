@@ -2,6 +2,7 @@ from flask import (
     Blueprint, request, jsonify, render_template,
     redirect, url_for, flash
 )
+from flask_login import current_user
 from datetime import date, timedelta
 from contextlib import contextmanager
 from sqlalchemy.orm import joinedload
@@ -21,6 +22,12 @@ bp = Blueprint(
     template_folder='templates/emprestimos',
     url_prefix='/emprestimos'
 )
+
+
+def _escola_id():
+    """Escola do usuário logado — chave de isolamento multi-tenant."""
+    return current_user.escola_id
+
 
 @contextmanager
 def get_db():
@@ -49,6 +56,7 @@ def listar_emprestimos_html():
             )
             .join(Aluno, Emprestimo.aluno_id == Aluno.id)
             .join(Livro, Emprestimo.livro_id == Livro.id)
+            .filter(Emprestimo.escola_id == _escola_id())
             .all()
         )
 
@@ -68,10 +76,11 @@ def listar_emprestimos_html():
 
 @bp.route('/', methods=['GET'])
 def listar_emprestimos_json():
-    """Retorna JSON com todos os empréstimos."""
+    """Retorna JSON com todos os empréstimos da escola."""
     with get_db() as db:
         lista = (
             db.query(Emprestimo)
+            .filter(Emprestimo.escola_id == _escola_id())
             .options(
                 joinedload(Emprestimo.aluno),
                 joinedload(Emprestimo.livro)
@@ -92,7 +101,6 @@ def listar_emprestimos_json():
     ]
     return jsonify(resultado), 200
 
-from datetime import date, timedelta
 
 @bp.route('/', methods=['POST'])
 def criar_emprestimo():
@@ -100,6 +108,7 @@ def criar_emprestimo():
     dados = request.get_json() or {}
     codigo_aluno = dados.get('codigo_aluno')
     codigo_livro = dados.get('codigo_livro')
+    escola_id = _escola_id()
 
     # 1. Data prevista customizada ou fallback por dias
     data_prevista_str = dados.get('data_prevista')
@@ -121,15 +130,21 @@ def criar_emprestimo():
 
     try:
         with get_db() as db:
-            aluno = db.query(Aluno).filter_by(codigo=codigo_aluno).first()
-            livro = db.query(Livro).filter_by(codigo=codigo_livro).first()
+            aluno = db.query(Aluno).filter_by(codigo=codigo_aluno, escola_id=escola_id).first()
+            livro = db.query(Livro).filter_by(codigo=codigo_livro, escola_id=escola_id).first()
 
             if not aluno or not livro:
                 return jsonify(error='Aluno ou livro não encontrado'), 404
+            # Regra das bolinhas: só livros 🟢 (emprestável) saem da biblioteca.
+            if livro.politica != 'emprestavel':
+                return jsonify(
+                    error=f'{livro.bolinha} Este livro é "{livro.politica_label}" e não pode ser emprestado.'
+                ), 409
             if livro.situacao != 'disponível':
                 return jsonify(error='Livro não está disponível'), 409
 
             emprestimo = Emprestimo(
+                escola_id=escola_id,
                 aluno_id=aluno.id,
                 livro_id=livro.id,
                 data_emprestimo=date.today(),
@@ -153,12 +168,13 @@ def registrar_devolucao():
     try:
         dados = request.get_json() or {}
         codigo_livro = dados.get('codigo_livro')
+        escola_id = _escola_id()
         if not codigo_livro:
             return jsonify(error='codigo_livro é obrigatório'), 400
 
         # 1. Executa dentro da sessão
         with get_db() as db:
-            livro = db.query(Livro).filter_by(codigo=codigo_livro).first()
+            livro = db.query(Livro).filter_by(codigo=codigo_livro, escola_id=escola_id).first()
             if not livro:
                 return jsonify(error='Livro não encontrado'), 404
 
@@ -208,7 +224,7 @@ def status_emprestimos():
             return redirect(url_for('emprestimos.status_emprestimos'))
 
         with get_db() as db:
-            aluno = db.query(Aluno).filter_by(codigo=codigo).first()
+            aluno = db.query(Aluno).filter_by(codigo=codigo, escola_id=_escola_id()).first()
             if not aluno:
                 flash(f'Aluno "{codigo}" não encontrado.', 'danger')
                 return redirect(url_for('emprestimos.status_emprestimos'))
@@ -231,7 +247,7 @@ def obter_aluno_json(codigo):
         aluno = (
             db.query(Aluno)
             .options(joinedload(Aluno.emprestimos).joinedload(Emprestimo.livro))
-            .filter_by(codigo=codigo)
+            .filter_by(codigo=codigo, escola_id=_escola_id())
             .first()
         )
         if not aluno:
@@ -255,7 +271,7 @@ def obter_aluno_json(codigo):
 def obter_livro_json(codigo):
     """Retorna JSON com dados do livro e, se emprestado, quem o possui."""
     with get_db() as db:
-        livro = db.query(Livro).filter_by(codigo=codigo).first()
+        livro = db.query(Livro).filter_by(codigo=codigo, escola_id=_escola_id()).first()
         if not livro:
             return jsonify(error='Livro não encontrado'), 404
 
@@ -263,7 +279,10 @@ def obter_livro_json(codigo):
             'codigo': livro.codigo,
             'titulo': livro.titulo,
             'autor': livro.autor,
-            'situacao': livro.situacao
+            'situacao': livro.situacao,
+            'politica': livro.politica,
+            'bolinha': livro.bolinha,
+            'politica_label': livro.politica_label
         }
 
         if livro.situacao == 'emprestado':
@@ -292,6 +311,7 @@ def autocomplete_alunos():
     with get_db() as db:
         itens = (
             db.query(Aluno)
+            .filter(Aluno.escola_id == _escola_id())
             .filter(Aluno.nome.ilike(f"%{term}%"))
             .limit(10)
             .all()
@@ -306,6 +326,7 @@ def autocomplete_livros():
     with get_db() as db:
         itens = (
             db.query(Livro)
+            .filter(Livro.escola_id == _escola_id())
             .filter(Livro.titulo.ilike(f"%{term}%"))
             .limit(10)
             .all()

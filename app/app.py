@@ -5,6 +5,7 @@ from config.settings import engine, Base, SessionLocal
 from routes.alunos import bp as alunos_bp
 from routes.livros import bp as livros_bp
 from routes.emprestimos import bp as emprestimos_bp
+from models.escola import Escola
 from models.aluno import Aluno
 from models.livro import Livro
 from models.emprestimo import Emprestimo
@@ -23,7 +24,28 @@ from flask import send_from_directory
 
 def create_app():
     app = Flask(__name__,template_folder='templates',static_folder='static')
-    app.config['SECRET_KEY'] = 'Ohfh:a!()*95T?F4KxR5mZkq9'
+    # Em produção (SaaS) a chave vem do .env; nunca versione o valor real.
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-change-me')
+
+    # Endurecimento do cookie de sessão (app servido só via HTTPS/Cloudflare).
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,   # JS não lê o cookie (mitiga XSS)
+        SESSION_COOKIE_SECURE=True,     # cookie só trafega em HTTPS
+        SESSION_COOKIE_SAMESITE='Lax',  # mitiga CSRF em navegação cross-site
+    )
+
+    # Cria as tabelas que ainda não existirem (idempotente).
+    # Retry porque o MySQL pode não estar pronto quando o app sobe.
+    import time
+    for tentativa in range(20):
+        try:
+            Base.metadata.create_all(bind=engine)
+            break
+        except Exception as e:
+            if tentativa == 19:
+                raise
+            print(f'⏳ Aguardando o banco… ({tentativa+1}/20): {e}', flush=True)
+            time.sleep(3)
     
     
     # inicializa o LoginManager
@@ -55,7 +77,7 @@ def create_app():
     @app.before_request
     def require_login():
         # lista de endpoints que não exigem login
-        public = ('auth.login', 'auth.logout', 'auth.register', 'static')
+        public = ('auth.login', 'auth.logout', 'static')
         # se endpoint não for público e o usuário NÃO estiver autenticado:
         if not current_user.is_authenticated and request.endpoint not in public:
             return redirect(url_for('auth.login'))
@@ -73,21 +95,24 @@ def create_app():
     # rota dashboard
     @app.route('/')
     def dashboard():
+        eid = current_user.escola_id
         with SessionLocal() as db:
-            # métricas gerais
-            total_alunos   = db.query(Aluno).count()
-            total_livros   = db.query(Livro).count()
-            disponiveis    = db.query(Livro).filter_by(situacao='disponível').count()
-            emprestados    = db.query(Livro).filter_by(situacao='emprestado').count()
-            ativos         = db.query(Emprestimo).filter_by(data_devolucao=None).count()
+            # métricas gerais (escopadas por escola)
+            total_alunos   = db.query(Aluno).filter_by(escola_id=eid).count()
+            total_livros   = db.query(Livro).filter_by(escola_id=eid).count()
+            disponiveis    = db.query(Livro).filter_by(escola_id=eid, situacao='disponível').count()
+            emprestados    = db.query(Livro).filter_by(escola_id=eid, situacao='emprestado').count()
+            ativos         = db.query(Emprestimo).filter_by(escola_id=eid, data_devolucao=None).count()
             atrasados      = db.query(Emprestimo).filter(
+                                 Emprestimo.escola_id==eid,
                                  Emprestimo.data_devolucao==None,
                                  Emprestimo.data_prevista_devolucao<date.today()
                                ).count()
             # empréstimos registrados hoje
             emprestimos_hoje = (
                 db.query(Emprestimo)
-                .filter(func.date(Emprestimo.data_emprestimo) == date.today())
+                .filter(Emprestimo.escola_id==eid,
+                        func.date(Emprestimo.data_emprestimo) == date.today())
                 .count()
             )
 
@@ -100,6 +125,7 @@ def create_app():
                 qtd = (
                     db.query(Emprestimo)
                     .filter(
+                        Emprestimo.escola_id==eid,
                         func.extract('year', Emprestimo.data_emprestimo) == ano_atual,
                         func.extract('month', Emprestimo.data_emprestimo) == m
                     )
@@ -107,11 +133,12 @@ def create_app():
                 )
                 emprestimos_mes_data.append(qtd)
 
-            
+
             # BI: top 5 alunos e livros
             top_alunos = (
                 db.query(Aluno.nome, func.count(Emprestimo.id).label('qtd'))
                   .join(Emprestimo, Emprestimo.aluno_id==Aluno.id)
+                  .filter(Aluno.escola_id==eid)
                   .group_by(Aluno.id)
                   .order_by(func.count(Emprestimo.id).desc())
                   .limit(5)
@@ -120,6 +147,7 @@ def create_app():
             top_livros = (
                 db.query(Livro.titulo, func.count(Emprestimo.id).label('qtd'))
                   .join(Emprestimo, Emprestimo.livro_id==Livro.id)
+                  .filter(Livro.escola_id==eid)
                   .group_by(Livro.id)
                   .order_by(func.count(Emprestimo.id).desc())
                   .limit(5)

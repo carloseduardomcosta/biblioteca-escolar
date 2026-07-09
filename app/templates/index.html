@@ -96,48 +96,5 @@ document.addEventListener('DOMContentLoaded', function () {
     options:{responsive:true, scales:{y:{beginAtZero:true}}}
   });
 });
-
-$(function(){
-  $('#btnRegisterUser').click(async () => {
-    const newUser   = $('#newUsername').val().trim();
-    const newPass   = $('#newPassword').val();
-    const adminUser = $('#adminUsername').val().trim();
-    const adminPass = $('#adminPassword').val();
-
-    if (!newUser || !newPass || !adminUser || !adminPass) {
-      showToast('error','Preencha todos os campos');
-      return;
-    }
-
-    let payload = {
-      new_username: newUser,
-      new_password: newPass,
-      admin_username: adminUser,
-      admin_password: adminPass
-    };
-
-    try {
-      const res = await fetch("{{ url_for('auth.register') }}", {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-
-      if (res.status === 201) {
-        showToast('success', data.message);
-        $('#registerModal').modal('hide');
-        $('#registerForm')[0].reset();
-      } else {
-        showToast('error', data.error || 'Erro ao cadastrar');
-      }
-    } catch (err) {
-      showToast('error','Erro de comunicação');
-    }
-  });
-});
-
-
-
 </script>
 {% endblock %}

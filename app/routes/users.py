@@ -16,31 +16,37 @@ bp = Blueprint(
 )
 
 def is_admin():
-    # Se você tiver um campo is_admin no model:
-    # return current_user.is_admin
-    # Por enquanto, liberamos para qualquer logado:
-    return current_user.is_authenticated
+    """Só administradores acessam a gestão de usuários."""
+    return current_user.is_authenticated and bool(getattr(current_user, 'is_admin', False))
 
 @bp.before_request
 @login_required
 def _check_admin():
     if not is_admin():
-        flash('Acesso negado.', 'danger')
+        flash('Acesso negado. Apenas administradores gerenciam usuários.', 'danger')
         return redirect(url_for('dashboard'))
+
+
+def _scope(query):
+    """Superadmin (escola_id nulo) vê todos; senão só os da sua escola."""
+    if current_user.escola_id is None:
+        return query
+    return query.filter(Usuario.escola_id == current_user.escola_id)
 
 @bp.route('/')
 def listar_usuarios():
-    """Lista todos os usuários."""
+    """Lista os usuários da escola."""
     with SessionLocal() as db:
-        usuarios = db.query(Usuario).all()
+        usuarios = _scope(db.query(Usuario)).all()
     return render_template('users/list.html', usuarios=usuarios)
 
 @bp.route('/criar', methods=['GET','POST'])
 def criar_usuario():
-    """Form e criação de novo usuário."""
+    """Form e criação de novo usuário (na escola do admin logado)."""
     if request.method == 'POST':
         username = request.form['username'].strip()
         password = request.form['password']
+        is_admin_flag = request.form.get('is_admin') == 'on'
         if not username or not password:
             flash('Preencha ambos os campos.', 'warning')
             return redirect(url_for('users.criar_usuario'))
@@ -49,8 +55,10 @@ def criar_usuario():
                 flash('Usuário já existe.', 'danger')
             else:
                 u = Usuario(
+                    escola_id=current_user.escola_id,
                     username=username,
-                    password_hash=generate_password_hash(password)
+                    password_hash=generate_password_hash(password),
+                    is_admin=is_admin_flag
                 )
                 db.add(u)
                 db.commit()
@@ -62,7 +70,7 @@ def criar_usuario():
 def editar_usuario(uid):
     """Form e atualização de usuário."""
     with SessionLocal() as db:
-        u = db.query(Usuario).get(uid)
+        u = _scope(db.query(Usuario).filter(Usuario.id == uid)).first()
         if not u:
             flash('Usuário não encontrado.', 'danger')
             return redirect(url_for('users.listar_usuarios'))
@@ -74,6 +82,7 @@ def editar_usuario(uid):
                 u.username = new_username
             if new_password:
                 u.password_hash = generate_password_hash(new_password)
+            u.is_admin = request.form.get('is_admin') == 'on'
             db.commit()
             flash('Usuário atualizado.', 'success')
             return redirect(url_for('users.listar_usuarios'))
@@ -84,7 +93,7 @@ def editar_usuario(uid):
 def excluir_usuario(uid):
     """Exclui usuário."""
     with SessionLocal() as db:
-        u = db.query(Usuario).get(uid)
+        u = _scope(db.query(Usuario).filter(Usuario.id == uid)).first()
         if u:
             db.delete(u)
             db.commit()

@@ -1,4 +1,3 @@
-version: "3.8"
 services:
 
   db:
@@ -13,8 +12,8 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "3306:3306"
+    # Sem "ports:" de propósito — o banco NÃO é exposto para fora.
+    # Só a aplicação (mesma rede Docker) o acessa pelo host "db".
 
   web:
     build: ./app
@@ -22,52 +21,35 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      # usa as mesmas variáveis definidas em .env
       DATABASE_URL: mysql+mysqlconnector://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
     depends_on:
       - db
     ports:
-      - "65000:65000"
+      # Só localhost do servidor (testes/admin). O ingresso público é via
+      # Cloudflare -> nginx (proxy_net), que alcança "biblioteca-app:65000".
+      - "127.0.0.1:65000:65000"
+    networks:
+      - default
+      - proxy_net
     volumes:
       - ./app:/app:ro
+      # Código read-only, mas os barcodes gerados precisam de escrita:
+      - ./app/static/barcodes:/app/static/barcodes
     command: >
       gunicorn
       --capture-output
       --error-logfile -
-      --log-level debug
+      --log-level info
+      --workers 3
       --bind 0.0.0.0:65000
       app:app
 
-  grafana:
-    image: grafana/grafana:latest
-    container_name: biblioteca-grafana
-    restart: unless-stopped
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: "grafana123"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: biblioteca-phpmyadmin
-    restart: unless-stopped
-    environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
-      PMA_ARBITRARY: 1
-      # Se quiser pré‐definir credenciais de login (opcional):
-      # PMA_USER: ${MYSQL_USER}
-      # PMA_PASSWORD: ${MYSQL_PASSWORD}
-    ports:
-      - "8080:80"
-    depends_on:
-      - db
-
 volumes:
   mysql_data:
-  grafana_data:
+
+networks:
+  # rede compartilhada do proxy nginx (/opt/infra/proxy)
+  proxy_net:
+    external: true
+    name: proxy_net
+  default: {}

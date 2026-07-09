@@ -9,3 +9,4 @@ Flask-WTF
 flask-login
 bcrypt
 gunicorn
+openpyxl>=3.1

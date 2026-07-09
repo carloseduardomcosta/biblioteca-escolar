@@ -6,8 +6,7 @@
 <div class="mb-3">
   <a href="{{ url_for('livros.novo_livro') }}" class="btn btn-primary me-2">Novo Livro</a>
   <a href="{{ url_for('livros.importar_livros_form') }}" class="btn btn-secondary">Importar CSV</a>
-  <a href="{{ url_for('livros.exportar_livros_pdf') }}"class="btn btn-outline-secondary mb-3">Exportar PDF de Barcodes
-</a>
+  <a href="{{ url_for('livros.exportar_livros_pdf') }}" class="btn btn-outline-secondary">🏷️ Imprimir etiquetas (PDF)</a>
 </div>
 
 
@@ -19,6 +18,7 @@
       <th>Autor</th>
       <th>Ano</th>
       <th>Categoria</th>
+      <th>Grupo</th>
       <th>Situação</th>
       <th>Barcode</th>
       <th>Ações</th>
@@ -32,12 +32,19 @@
       <td>{{ livro.autor }}</td>
       <td>{{ livro.ano_publicacao or '' }}</td>
       <td>{{ livro.categoria }}</td>
+      <td title="{{ livro.politica_label }}">{{ livro.bolinha }} {{ livro.politica_label }}</td>
       <td>{{ livro.situacao }}</td>
       <td>
-  <img src="{{ url_for('static', filename='barcodes/' ~ livro.barcode_img) }}"alt="Barcode {{ livro.codigo }}"height="50"></td>
+        {% if livro.barcode_img %}
+        <img src="{{ url_for('static', filename='barcodes/' ~ livro.barcode_img) }}" alt="Barcode {{ livro.codigo }}" height="50">
+        {% endif %}
+      </td>
       <td>
         <a href="{{ url_for('livros.editar_livro', codigo=livro.codigo) }}" class="btn btn-sm btn-warning">Editar</a>
-        <a href="{{ url_for('livros.deletar_livro', codigo=livro.codigo) }}" class="btn btn-sm btn-danger">Excluir</a>
+        <form method="post" action="{{ url_for('livros.deletar_livro', codigo=livro.codigo) }}"
+              style="display:inline" onsubmit="return confirm('Excluir o livro {{ livro.codigo }} — {{ livro.titulo }}?');">
+          <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+        </form>
       </td>
     </tr>
     {% endfor %}
