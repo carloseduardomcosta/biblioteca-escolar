@@ -89,6 +89,8 @@ Modelos também disponíveis na raiz do repositório:
 
 ## 🏭 Fluxo de produção (catalogar do zero)
 
+> 📖 Guia de operação passo a passo (para quem usa a biblioteca): [`GUIA-DE-USO.md`](./GUIA-DE-USO.md)
+
 Para bibliotecas sem organização e com milhares de livros, o fluxo recomendado é
 **"linha de produção"** — pega o livro, dá entrada, e imprime a etiqueta em lote:
 
