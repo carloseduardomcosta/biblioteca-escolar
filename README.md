@@ -21,7 +21,9 @@ Projeto sem fins lucrativos, em uso na **EEB Teófilo Nolasco de Almeida**.
   - 🟡 **Só na biblioteca** — consulta local (não empresta)
   - 🔴 **Não empresta** — restrito (livro de professor etc.)
   O empréstimo de livros 🟡/🔴 é **bloqueado** automaticamente.
-- **Etiquetas em PDF**: folha pronta pra imprimir com bolinha + código + título + autor + código de barras.
+- **Fluxo de produção**: cadastro com **código sequencial automático**, **fila de etiquetas
+  pendentes** (imprime em lote) e **etiqueta dobrável** em PDF — ideal para catalogar
+  milhares de livros do zero (veja abaixo).
 - **Multi-escola (multi-tenant)**: cada escola só enxerga seus próprios dados.
 - **Papel de administrador**: só admin gerencia usuários.
 
@@ -39,6 +41,8 @@ Projeto sem fins lucrativos, em uso na **EEB Teófilo Nolasco de Almeida**.
   alunos é único **por escola**.
 - A aplicação cria as tabelas no start (`Base.metadata.create_all`, com retry até o
   banco ficar pronto) — não depende de dump SQL.
+- **Conexão resiliente**: `pool_pre_ping` + `pool_recycle` reciclam conexões ociosas/mortas,
+  evitando erros na primeira operação após período parado (ex: ao abrir a biblioteca).
 
 ## 🚀 Como rodar (Docker)
 
@@ -83,10 +87,26 @@ Modelos também disponíveis na raiz do repositório:
 | Livros   | `codigo`, `titulo`, `autor`, `ano_publicacao`, `categoria`, `grupo` |
 | Alunos   | `codigo` (matrícula), `nome`, `turma` |
 
-## 🏷️ Etiquetas
+## 🏭 Fluxo de produção (catalogar do zero)
 
-Em **Livros**, clique em **🏷️ Imprimir etiquetas (PDF)** para gerar uma folha A4
-com as etiquetas de todo o acervo cadastrado (3 colunas). Gere **depois** de importar o acervo.
+Para bibliotecas sem organização e com milhares de livros, o fluxo recomendado é
+**"linha de produção"** — pega o livro, dá entrada, e imprime a etiqueta em lote:
+
+1. **Dar entrada**: em **Livros → ➕ Novo Livro**, o **código já vem preenchido**
+   (sequencial automático — ex: `0001`, `0002`…). Confira, ajuste o grupo (bolinha) e salve.
+   O formulário volta vazio, com o próximo código, pronto pro próximo livro.
+2. **Fila de pendentes**: cada livro novo entra como **etiqueta pendente**. A tela de
+   Livros mostra o contador (ex: *"12 pendentes"*).
+3. **Imprimir em lote**: quando juntar o suficiente pra encher a folha, clique em
+   **🏷️ Imprimir etiquetas pendentes**. Sai um PDF só com esses livros e eles são
+   marcados como impressos (o contador zera). Use **Reimprimir todas** se precisar refazer.
+
+## 🏷️ Etiqueta dobrável
+
+Cada etiqueta é feita para **papel A4 comum** (recorte e dobre no vinco central):
+
+- **Frente** (fica visível no livro): bolinha ~1,5 cm na **cor da política** 🟢🟡🔴 + **número**.
+- **Verso**: **código de barras** (com o número embaixo), **título** e **categoria**.
 
 ## 🌐 Publicação (proxy reverso)
 

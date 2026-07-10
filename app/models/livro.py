@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.orm import relationship
 from config.settings import Base
 from flask import url_for
@@ -36,6 +36,8 @@ class Livro(Base):
                        nullable=False
                     )
     barcode_img    = Column(String(120), nullable=True)
+    # Controle da fila de impressão de etiquetas (novo livro entra como pendente)
+    etiqueta_impressa = Column(Boolean, default=False, nullable=False)
 
     escola = relationship('Escola', back_populates='livros')
 

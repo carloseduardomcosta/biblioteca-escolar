@@ -20,8 +20,10 @@ A base tem que existir antes de cadastrar dados reais, senão retrabalho.
 - ✅ `reportlab` já está nas dependências (dá pra montar folha de etiquetas)
 - ✅ **Planilha-modelo do acervo** (`modelo-acervo-livros.xlsx`, na raiz e em `app/static`): abas Acervo/Instruções, lista suspensa das bolinhas na coluna `grupo`. Botão "Baixar modelo" serve o .xlsx
 - ✅ **Importador robusto**: aceita `.xlsx` e CSV, detecta codificação (não corrompe acento), ignora duplicatas (no arquivo e no banco), grupo vazio→🟢, retorno detalhado. TESTADO com acentos/travessão/3 grupos/duplicata — zero perda (openpyxl adicionado)
-- ✅ **Etiquetas em PDF** (botão "🏷️ Imprimir etiquetas" na lista): grade 3 colunas com bolinha colorida + código + título + autor + código de barras; gera a partir do acervo cadastrado; regenera barcode ausente; catálogo vazio → aviso. TESTADO (texto/acentos conferidos)
-- ✅ Código do livro: **sequencial** (decidido)
+- ✅ **Fluxo de produção** (para ~1-2k livros sem organização): código **automático sequencial** no cadastro (volta pro form após salvar); **fila de etiquetas pendentes** (`etiqueta_impressa`) — imprime em lote quando encher a folha, marca como impressas, contador na lista; **reimprimir todas** como fallback
+- ✅ **Etiqueta DOBRÁVEL** (papel A4 p/ recortar): frente = bolinha ~1,5cm na cor + número; verso = código de barras + título + categoria. Recorta a borda, dobra no vinco. TESTADA
+- ✅ Lista de livros aliviada (removida imagem de barcode por linha — pesava com milhares)
+- ✅ Código do livro: **sequencial automático**
 
 ## Épico C — Carteirinha = cartão da alimentação 🔨
 Aproveitar o código de barras que o cartão da merenda já tem — zero impressão de carteirinha.

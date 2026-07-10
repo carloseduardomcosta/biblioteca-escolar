@@ -4,10 +4,21 @@
 {% block content %}
 <h1>Livros</h1>
 <div class="mb-3">
-  <a href="{{ url_for('livros.novo_livro') }}" class="btn btn-primary me-2">Novo Livro</a>
-  <a href="{{ url_for('livros.importar_livros_form') }}" class="btn btn-secondary">Importar CSV</a>
-  <a href="{{ url_for('livros.exportar_livros_pdf') }}" class="btn btn-outline-secondary">🏷️ Imprimir etiquetas (PDF)</a>
+  <a href="{{ url_for('livros.novo_livro') }}" class="btn btn-primary me-2">➕ Novo Livro</a>
+  <a href="{{ url_for('livros.importar_livros_form') }}" class="btn btn-secondary me-2">Importar planilha</a>
+  <a href="{{ url_for('livros.etiquetas_pendentes') }}" class="btn btn-success me-1">
+    🏷️ Imprimir etiquetas pendentes{% if pendentes %} ({{ pendentes }}){% endif %}
+  </a>
+  <a href="{{ url_for('livros.exportar_livros_pdf') }}" class="btn btn-outline-secondary btn-sm"
+     onclick="return confirm('Reimprimir as etiquetas de TODO o acervo?');">Reimprimir todas</a>
 </div>
+
+{% if pendentes %}
+<div class="alert alert-info py-2">
+  📋 <strong>{{ pendentes }}</strong> livro(s) com etiqueta pendente de impressão.
+  Junte um lote e clique em <em>Imprimir etiquetas pendentes</em> para aproveitar a folha.
+</div>
+{% endif %}
 
 
 <table id="livrosTable" class="table table-striped datatable">
@@ -20,7 +31,7 @@
       <th>Categoria</th>
       <th>Grupo</th>
       <th>Situação</th>
-      <th>Barcode</th>
+      <th>Etiqueta</th>
       <th>Ações</th>
     </tr>
   </thead>
@@ -34,11 +45,7 @@
       <td>{{ livro.categoria }}</td>
       <td title="{{ livro.politica_label }}">{{ livro.bolinha }} {{ livro.politica_label }}</td>
       <td>{{ livro.situacao }}</td>
-      <td>
-        {% if livro.barcode_img %}
-        <img src="{{ url_for('static', filename='barcodes/' ~ livro.barcode_img) }}" alt="Barcode {{ livro.codigo }}" height="50">
-        {% endif %}
-      </td>
+      <td>{{ '✅ impressa' if livro.etiqueta_impressa else '🟠 pendente' }}</td>
       <td>
         <a href="{{ url_for('livros.editar_livro', codigo=livro.codigo) }}" class="btn btn-sm btn-warning">Editar</a>
         <form method="post" action="{{ url_for('livros.deletar_livro', codigo=livro.codigo) }}"

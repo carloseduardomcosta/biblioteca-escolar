@@ -18,7 +18,9 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 engine = create_engine(
     DATABASE_URL,
     echo=os.getenv('SQL_ECHO', '0') == '1',
-    future=True       # API 2.0 style
+    future=True,          # API 2.0 style
+    pool_pre_ping=True,   # testa/reconecta antes de usar — evita "MySQL Connection not available"
+    pool_recycle=3600,    # recicla conexões com >1h (antes do wait_timeout do MySQL)
 )
 
 # sessão de trabalho

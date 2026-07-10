@@ -53,6 +53,20 @@ def _parse_politica(valor, default='emprestavel'):
     return _POLITICA_ALIASES.get(v, default)
 
 
+def _proximo_codigo(db, escola_id):
+    """Sugere o próximo código sequencial da escola (ex: 0001, 0002...).
+    Considera apenas códigos numéricos; ignora os que não são."""
+    codigos = db.query(Livro.codigo).filter_by(escola_id=escola_id).all()
+    maior = 0
+    largura = 4
+    for (cod,) in codigos:
+        c = (cod or '').strip()
+        if c.isdigit():
+            maior = max(maior, int(c))
+            largura = max(largura, len(c))
+    return str(maior + 1).zfill(largura)
+
+
 @bp.route('/template', methods=['GET'])
 def download_livros_template():
     """Baixa o modelo do acervo. Serve o .xlsx (com instruções e lista suspensa
@@ -161,8 +175,9 @@ def importar_livros():
 def listar_livros():
     """Lista todos os livros da escola"""
     with SessionLocal() as db:
-        livros = db.query(Livro).filter_by(escola_id=_escola_id()).all()
-    return render_template('livros/list.html', livros=livros)
+        livros = db.query(Livro).filter_by(escola_id=_escola_id()).order_by(Livro.codigo).all()
+        pendentes = db.query(Livro).filter_by(escola_id=_escola_id(), etiqueta_impressa=False).count()
+    return render_template('livros/list.html', livros=livros, pendentes=pendentes)
 
 @bp.route('/novo', methods=['GET', 'POST'])
 def novo_livro():
@@ -199,13 +214,16 @@ def novo_livro():
             db.add(livro)
             try:
                 db.commit()
-                flash('Livro criado com sucesso!', 'success')
+                flash(f'📗 Livro "{titulo}" ({codigo}) cadastrado! Etiqueta na fila de impressão.', 'success')
             except Exception:
                 db.rollback()
                 flash('Erro ao criar livro. Verifique se o código já existe.', 'danger')
-        return redirect(url_for('livros.listar_livros'))
+        # fluxo de produção: volta pro formulário vazio (com o próximo código)
+        return redirect(url_for('livros.novo_livro'))
 
-    return render_template('livros/form.html', livro=None)
+    with SessionLocal() as db:
+        sugestao = _proximo_codigo(db, _escola_id())
+    return render_template('livros/form.html', livro=None, sugestao_codigo=sugestao)
 
 @bp.route('/<string:codigo>/editar', methods=['GET', 'POST'])
 def editar_livro(codigo):
@@ -268,34 +286,29 @@ def _trunc(texto, fonte, tam, larg_max):
     return texto + '…'
 
 
-@bp.route('/export/pdf', methods=['GET'])
-def exportar_livros_pdf():
-    """Gera uma folha de ETIQUETAS (PDF) dos livros da escola:
-    bolinha colorida + código + título + autor + código de barras.
-    Baseia-se no acervo já cadastrado (importe a planilha antes)."""
+def _pdf_etiquetas_dobraveis(livros, pasta):
+    """Desenha uma folha A4 de ETIQUETAS DOBRÁVEIS e retorna o buffer PDF.
+
+    Cada etiqueta é um retângulo com um vinco central (dobra):
+      • FRENTE (esquerda): bolinha ~1,5 cm na cor da política + número do livro
+      • VERSO  (direita):  código de barras (com nº) + título + categoria
+    Recorte a borda externa e dobre no vinco.
+    """
     from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
     from reportlab.pdfgen import canvas
     import io, os
-
-    with SessionLocal() as db:
-        livros = db.query(Livro).filter_by(escola_id=_escola_id()).order_by(Livro.codigo).all()
-
-    if not livros:
-        flash('Nenhum livro cadastrado ainda. Importe o acervo antes de gerar as etiquetas.', 'warning')
-        return redirect(url_for('livros.listar_livros'))
-
-    pasta = os.path.join(current_app.static_folder, 'barcodes')
-    os.makedirs(pasta, exist_ok=True)
 
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     PW, PH = A4
 
-    margin = 28
-    cols = 3
-    gut_x, gut_y = 10, 8
+    margin = 10 * mm
+    cols = 2
+    gut_x, gut_y = 6 * mm, 5 * mm
     label_w = (PW - 2 * margin - (cols - 1) * gut_x) / cols
-    label_h = 96
+    label_h = 32 * mm
+    panel_w = label_w / 2
     rows = int((PH - 2 * margin + gut_y) // (label_h + gut_y))
 
     col = row = 0
@@ -313,29 +326,39 @@ def exportar_livros_pdf():
         lx = margin + col * (label_w + gut_x)
         ly_top = PH - margin - row * (label_h + gut_y)
 
-        # moldura da etiqueta
+        # borda externa (linha de corte)
+        c.setDash()
         c.setLineWidth(0.5)
-        c.setStrokeColorRGB(0.75, 0.75, 0.75)
+        c.setStrokeColorRGB(0.7, 0.7, 0.7)
         c.rect(lx, ly_top - label_h, label_w, label_h)
+        # vinco central (dobra) — tracejado
+        c.setDash(2, 2)
+        c.setStrokeColorRGB(0.6, 0.6, 0.6)
+        c.line(lx + panel_w, ly_top, lx + panel_w, ly_top - label_h)
+        c.setDash()
 
-        # bolinha colorida (política) + código
+        # ── FRENTE (esquerda): bolinha + número ──
         r, g, b = _COR_POLITICA.get(livro.politica, (0.5, 0.5, 0.5))
+        cx = lx + panel_w / 2
         c.setFillColorRGB(r, g, b)
-        c.circle(lx + 10, ly_top - 12, 4, fill=1, stroke=0)
+        c.circle(cx, ly_top - 13 * mm, 7.5 * mm, fill=1, stroke=0)
         c.setFillColorRGB(0, 0, 0)
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(lx + 20, ly_top - 15, livro.codigo)
+        c.setFont('Helvetica-Bold', 12)
+        c.drawCentredString(cx, ly_top - 28 * mm, livro.codigo)
 
-        # código de barras
+        # ── VERSO (direita): código de barras + título + categoria ──
+        rx = lx + panel_w
         if img_path:
-            c.drawImage(img_path, lx + 12, ly_top - 55, width=label_w - 24, height=34,
+            c.drawImage(img_path, rx + 3 * mm, ly_top - 16 * mm,
+                        width=panel_w - 6 * mm, height=12 * mm,
                         preserveAspectRatio=False, mask='auto')
-
-        # título e autor (truncados)
+        c.setFillColorRGB(0, 0, 0)
         c.setFont('Helvetica', 7.5)
-        c.drawString(lx + 8, ly_top - 66, _trunc(livro.titulo, 'Helvetica', 7.5, label_w - 16))
+        c.drawString(rx + 3 * mm, ly_top - 21 * mm,
+                     _trunc(livro.titulo, 'Helvetica', 7.5, panel_w - 6 * mm))
         c.setFont('Helvetica-Oblique', 7)
-        c.drawString(lx + 8, ly_top - 76, _trunc(livro.autor, 'Helvetica-Oblique', 7, label_w - 16))
+        c.drawString(rx + 3 * mm, ly_top - 27 * mm,
+                     _trunc(livro.categoria or '', 'Helvetica-Oblique', 7, panel_w - 6 * mm))
 
         # avança na grade
         col += 1
@@ -348,9 +371,46 @@ def exportar_livros_pdf():
 
     c.save()
     buffer.seek(0)
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name='etiquetas-livros.pdf',
-        mimetype='application/pdf'
-    )
+    return buffer
+
+
+def _responder_pdf(buffer, nome):
+    return send_file(buffer, as_attachment=True, download_name=nome, mimetype='application/pdf')
+
+
+@bp.route('/etiquetas/pendentes', methods=['GET'])
+def etiquetas_pendentes():
+    """Imprime as etiquetas dos livros AINDA NÃO etiquetados (fila de produção)
+    e marca-os como impressos. Imprima quando juntar um lote (encher a folha)."""
+    pasta = os.path.join(current_app.static_folder, 'barcodes')
+    os.makedirs(pasta, exist_ok=True)
+    with SessionLocal() as db:
+        pendentes = (db.query(Livro)
+                       .filter_by(escola_id=_escola_id(), etiqueta_impressa=False)
+                       .order_by(Livro.codigo).all())
+        if not pendentes:
+            flash('Nenhuma etiqueta pendente. Tudo já foi impresso. 🎉', 'info')
+            return redirect(url_for('livros.listar_livros'))
+        buffer = _pdf_etiquetas_dobraveis(pendentes, pasta)
+        # marca como impressas
+        for livro in pendentes:
+            livro.etiqueta_impressa = True
+        db.commit()
+    return _responder_pdf(buffer, 'etiquetas-pendentes.pdf')
+
+
+@bp.route('/export/pdf', methods=['GET'])
+def exportar_livros_pdf():
+    """Reimprime as etiquetas de TODO o acervo (fallback). Também marca tudo como impresso."""
+    pasta = os.path.join(current_app.static_folder, 'barcodes')
+    os.makedirs(pasta, exist_ok=True)
+    with SessionLocal() as db:
+        livros = db.query(Livro).filter_by(escola_id=_escola_id()).order_by(Livro.codigo).all()
+        if not livros:
+            flash('Nenhum livro cadastrado ainda.', 'warning')
+            return redirect(url_for('livros.listar_livros'))
+        buffer = _pdf_etiquetas_dobraveis(livros, pasta)
+        for livro in livros:
+            livro.etiqueta_impressa = True
+        db.commit()
+    return _responder_pdf(buffer, 'etiquetas-todas.pdf')
