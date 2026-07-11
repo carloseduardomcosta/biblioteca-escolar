@@ -1,4 +1,4 @@
-from flask import Blueprint, request, render_template, redirect, url_for, flash, current_app, Response
+from flask import Blueprint, request, render_template, redirect, url_for, flash, current_app, Response, jsonify
 from flask_login import current_user
 from config.settings import SessionLocal
 from models.aluno import Aluno
@@ -51,6 +51,11 @@ _POLITICA_ALIASES = {
 def _parse_politica(valor, default='emprestavel'):
     v = (valor or '').strip().lower()
     return _POLITICA_ALIASES.get(v, default)
+
+
+def _parse_espessura(valor, default='medio'):
+    v = (valor or '').strip().lower()
+    return v if v in ('fininho', 'fino', 'medio', 'grosso') else default
 
 
 def _proximo_codigo(db, escola_id):
@@ -189,41 +194,82 @@ def novo_livro():
         ano = request.form.get('ano_publicacao', '').strip() or None
         categoria = request.form.get('categoria', '').strip()
         politica = _parse_politica(request.form.get('politica', 'emprestavel'))
+        espessura = _parse_espessura(request.form.get('espessura', 'medio'))
+        try:
+            qtd = int(request.form.get('quantidade', '1'))
+        except (TypeError, ValueError):
+            qtd = 1
+        qtd = max(1, min(qtd, 50))          # teto de segurança
 
         if not codigo or not titulo:
             flash('Código e título são obrigatórios.', 'warning')
             return redirect(url_for('livros.novo_livro'))
 
-        # Gera barcode
         pasta = os.path.join(current_app.static_folder, 'barcodes')
         os.makedirs(pasta, exist_ok=True)
-        arquivo = gerar_barcode(codigo, pasta)
 
-        livro = Livro(
-            escola_id=_escola_id(),
-            codigo=codigo,
-            titulo=titulo,
-            autor=autor,
-            ano_publicacao=int(ano) if ano else None,
-            categoria=categoria,
-            situacao='disponível',
-            politica=politica,
-            barcode_img=arquivo
-        )
+        def _mk(cod, tit, db):
+            arq = gerar_barcode(cod, pasta)
+            db.add(Livro(
+                escola_id=_escola_id(), codigo=cod, titulo=tit,
+                autor=autor, ano_publicacao=int(ano) if ano else None,
+                categoria=categoria, situacao='disponível',
+                politica=politica, espessura=espessura, barcode_img=arq,
+            ))
+
         with SessionLocal() as db:
-            db.add(livro)
+            if qtd == 1:
+                # exemplar único: usa o código informado no formulário
+                itens = [(codigo, titulo)]
+            else:
+                # vários exemplares iguais: título recebe sufixo "- N" e os
+                # códigos seguem a sequência padrão da escola.
+                base = _proximo_codigo(db, _escola_id())
+                inicio, largura = int(base), len(base)
+                itens = [(str(inicio + i).zfill(largura), f'{titulo} - {i + 1}')
+                         for i in range(qtd)]
+            for cod_i, tit_i in itens:
+                _mk(cod_i, tit_i, db)
             try:
                 db.commit()
-                flash(f'📗 Livro "{titulo}" ({codigo}) cadastrado! Etiqueta na fila de impressão.', 'success')
+                if qtd == 1:
+                    flash(f'📗 Livro "{titulo}" ({itens[0][0]}) cadastrado! '
+                          f'Etiqueta na fila de impressão.', 'success')
+                else:
+                    flash(f'📚 {qtd} exemplares de "{titulo}" cadastrados '
+                          f'({itens[0][0]}–{itens[-1][0]}). Etiquetas na fila.', 'success')
             except Exception:
                 db.rollback()
-                flash('Erro ao criar livro. Verifique se o código já existe.', 'danger')
+                flash('Erro ao criar livro(s). Verifique se algum código já existe.', 'danger')
         # fluxo de produção: volta pro formulário vazio (com o próximo código)
         return redirect(url_for('livros.novo_livro'))
 
     with SessionLocal() as db:
         sugestao = _proximo_codigo(db, _escola_id())
     return render_template('livros/form.html', livro=None, sugestao_codigo=sugestao)
+
+
+@bp.route('/similares', methods=['GET'])
+def similares():
+    """Retorna (JSON) títulos parecidos já cadastrados na escola, para alertar
+    quem está cadastrando sobre possível duplicata. Casa por qualquer palavra
+    (>=3 letras) do texto digitado."""
+    from sqlalchemy import or_
+    q = request.args.get('q', '').strip()
+    if len(q) < 3:
+        return jsonify([])
+    palavras = [w for w in q.split() if len(w) >= 3] or [q]
+    with SessionLocal() as db:
+        rows = (db.query(Livro)
+                  .filter(Livro.escola_id == _escola_id())
+                  .filter(or_(*[Livro.titulo.ilike(f'%{w}%') for w in palavras]))
+                  .order_by(Livro.titulo)
+                  .limit(10).all())
+        return jsonify([
+            {'codigo': r.codigo, 'titulo': r.titulo, 'bolinha': r.bolinha}
+            for r in rows
+        ])
+
 
 @bp.route('/<string:codigo>/editar', methods=['GET', 'POST'])
 def editar_livro(codigo):
@@ -243,6 +289,8 @@ def editar_livro(codigo):
         livro.situacao = request.form.get('situacao', livro.situacao)
         if request.form.get('politica'):
             livro.politica = _parse_politica(request.form.get('politica'), livro.politica)
+        if request.form.get('espessura'):
+            livro.espessura = _parse_espessura(request.form.get('espessura'), livro.espessura)
         with SessionLocal() as db:
             db.merge(livro)
             db.commit()
@@ -289,11 +337,12 @@ def _trunc(texto, fonte, tam, larg_max):
 def _pdf_etiquetas_dobraveis(livros, pasta):
     """Desenha uma folha A4 de ETIQUETAS e retorna o buffer PDF.
 
-    Etiqueta em tira única (altura máx. 2 cm), da esquerda p/ direita:
-      • código de barras (Code128) + número legível embaixo;
-      • frase vertical "Biblioteca / Escola Gallotti" no meio;
-      • bolinha Ø1 cm na cor da política (à direita).
-    Recorte pela borda externa.
+    Etiqueta que DOBRA sobre a lombada (altura ~2 cm; tamanho total fixo):
+      • aba da CAPA (esquerda): código de barras + número legível embaixo;
+      • faixa central = LOMBADA (dois vincos): frase vertical
+        "Biblioteca / Escola Gallotti"; a largura = espessura do livro;
+      • aba da CONTRACAPA (direita): bolinha Ø1 cm na cor da política.
+    Recorte pela borda externa e dobre nos vincos.
     """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
@@ -311,13 +360,11 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
     label_h = 20 * mm                        # altura máxima: 2 cm
     rows = int((PH - 2 * margin + gut_y) // (label_h + gut_y))
 
-    # Geometria horizontal:
-    #   código de barras à ESQUERDA; bolinha Ø1 cm (raio 5 mm) à DIREITA;
-    #   frase vertical "Biblioteca / Escola Gallotti" no meio.
-    bc_x       = 3 * mm                        # margem esquerda do barcode
-    bc_w       = 42 * mm                       # largura do barcode
-    bolinha_cx = label_w - 8 * mm              # centro X da bolinha (direita)
-    frase_cx   = (bc_x + bc_w + bolinha_cx - 5 * mm) / 2  # meio entre barcode e bolinha
+    # Geometria (a etiqueta dobra sobre a lombada):
+    #   barcode na aba da CAPA (esquerda); faixa central = LOMBADA cuja largura
+    #   é a espessura do livro (dois vincos); bolinha na aba da CONTRACAPA.
+    #   O tamanho total é fixo — só a distância barcode↔bolinha varia.
+    r_bol = 5 * mm                              # raio da bolinha (Ø1 cm, fixo)
 
     col = row = 0
     for livro in livros:
@@ -335,39 +382,54 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
         ly_top = PH - margin - row * (label_h + gut_y)
         cy = ly_top - label_h / 2             # meio vertical da etiqueta
 
+        label_bottom = ly_top - label_h
+
+        # faixa central (LOMBADA): largura = espessura do livro, centrada
+        band_w = livro.espessura_mm * mm
+        band_w = max(4 * mm, min(band_w, label_w - 40 * mm))   # limites seguros
+        band_left = lx + (label_w - band_w) / 2
+        band_right = band_left + band_w
+
         # borda externa (linha de corte)
         c.setDash()
         c.setLineWidth(0.5)
         c.setStrokeColorRGB(0.7, 0.7, 0.7)
-        c.rect(lx, ly_top - label_h, label_w, label_h)
+        c.rect(lx, label_bottom, label_w, label_h)
+        # vinco de dobra (tracejado) — só o do lado do barcode
+        # (o do lado da bolinha foi removido a pedido)
+        c.setDash(2, 2)
+        c.setStrokeColorRGB(0.6, 0.6, 0.6)
+        c.line(band_left, ly_top, band_left, label_bottom)
+        c.setDash()
 
-        # ── bolinha Ø1 cm (cor da política) ──
-        r, g, b = _COR_POLITICA.get(livro.politica, (0.5, 0.5, 0.5))
-        c.setFillColorRGB(r, g, b)
-        c.circle(lx + bolinha_cx, cy, 5 * mm, fill=1, stroke=0)
-
-        # ── frase vertical no meio: "Biblioteca" / "Escola Gallotti" ──
-        c.saveState()
-        c.translate(lx + frase_cx, cy)
-        c.rotate(90)
-        c.setFillColorRGB(0, 0, 0)
-        c.setFont('Helvetica-Bold', 7)
-        c.drawCentredString(0, 1.3 * mm, 'Biblioteca')
-        c.setFont('Helvetica', 6.5)
-        c.drawCentredString(0, -2.7 * mm, 'Escola Gallotti')
-        c.restoreState()
-
-        # ── código de barras à ESQUERDA + número em vetor (nítido) embaixo ──
+        # ── código de barras na aba da CAPA (esquerda) + número embaixo ──
         if img_path:
-            label_bottom = ly_top - label_h
-            # barras (PNG só com as barras, sem texto embutido)
-            c.drawImage(img_path, lx + bc_x, label_bottom + 6 * mm,
-                        width=bc_w, height=11 * mm,
+            bc_x0 = lx + 3 * mm
+            bc_w0 = band_left - bc_x0                  # vai até o vinco esquerdo
+            c.drawImage(img_path, bc_x0, label_bottom + 6 * mm,
+                        width=bc_w0, height=11 * mm,
                         preserveAspectRatio=False, mask='auto')
-            # número legível, desenhado como texto vetorial (não distorce)
             c.setFillColorRGB(0, 0, 0)
             c.setFont('Helvetica-Bold', 8)
-            c.drawCentredString(lx + bc_x + bc_w / 2, label_bottom + 2.5 * mm, livro.codigo)
+            c.drawCentredString(bc_x0 + bc_w0 / 2, label_bottom + 2.5 * mm, livro.codigo)
+
+        # ── frase vertical na LOMBADA (fonte escala p/ caber na faixa) ──
+        fs = max(4.0, min(7.0, (band_w - 3) / 1.7))    # tamanho da fonte (pt)
+        sep, base = 0.62 * fs, -0.35 * fs              # separação das linhas + centragem na faixa
+        c.saveState()
+        c.translate((band_left + band_right) / 2, cy)
+        c.rotate(90)
+        c.setFillColorRGB(0, 0, 0)
+        c.setFont('Helvetica-Bold', fs)
+        c.drawCentredString(0, sep + base, 'Biblioteca')
+        c.setFont('Helvetica', fs)
+        c.drawCentredString(0, -sep + base, 'Escola Gallotti')
+        c.restoreState()
+
+        # ── bolinha Ø1 cm na aba da CONTRACAPA (direita), junto ao vinco ──
+        r, g, b = _COR_POLITICA.get(livro.politica, (0.5, 0.5, 0.5))
+        c.setFillColorRGB(r, g, b)
+        c.circle(band_right + r_bol, cy, r_bol, fill=1, stroke=0)
 
         # avança na grade
         col += 1

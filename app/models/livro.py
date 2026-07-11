@@ -10,6 +10,16 @@ POLITICAS = {
     'restrito':    {'cor': '🔴', 'label': 'Não empresta (professor)'},
 }
 
+# Espessura da lombada — define a largura da faixa central da etiqueta
+# (a etiqueta dobra sobre a lombada, então a faixa do meio = espessura do livro).
+# 'mm' é a largura da lombada usada no PDF da etiqueta; ajuste conforme o acervo.
+ESPESSURAS = {
+    'fininho': {'label': 'Fininho (lombada bem fina)', 'mm': 6},
+    'fino':    {'label': 'Fino',                        'mm': 12},
+    'medio':   {'label': 'Médio (padrão)',              'mm': 20},
+    'grosso':  {'label': 'Grosso',                      'mm': 32},
+}
+
 class Livro(Base):
     __tablename__ = 'livro'
     # O código (sequencial) é único DENTRO de cada escola.
@@ -35,6 +45,13 @@ class Livro(Base):
                        default='emprestavel',
                        nullable=False
                     )
+    # Espessura da lombada (largura da faixa central da etiqueta ao dobrar)
+    espessura      = Column(
+                       Enum('fininho','fino','medio','grosso', name='espessura_livro'),
+                       default='medio',
+                       server_default='medio',
+                       nullable=False
+                    )
     barcode_img    = Column(String(120), nullable=True)
     # Controle da fila de impressão de etiquetas (novo livro entra como pendente)
     etiqueta_impressa = Column(Boolean, default=False, nullable=False)
@@ -54,6 +71,15 @@ class Livro(Base):
     @property
     def politica_label(self):
         return POLITICAS.get(self.politica, {}).get('label', self.politica)
+
+    @property
+    def espessura_mm(self):
+        """Largura (mm) da lombada/faixa central da etiqueta para esta espessura."""
+        return ESPESSURAS.get(self.espessura, ESPESSURAS['medio'])['mm']
+
+    @property
+    def espessura_label(self):
+        return ESPESSURAS.get(self.espessura, {}).get('label', self.espessura)
 
     @property
     def emprestavel(self):

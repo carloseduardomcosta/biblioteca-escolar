@@ -10,8 +10,16 @@
   </div>
   <div class="mb-3">
     <label for="titulo" class="form-label">Título</label>
-    <input type="text" class="form-control" id="titulo" name="titulo" value="{{ livro.titulo if livro else '' }}" required>
+    <input type="text" class="form-control" id="titulo" name="titulo" value="{{ livro.titulo if livro else '' }}" required autocomplete="off">
+    {% if not livro %}<div id="similares" class="mt-1"></div>{% endif %}
   </div>
+  {% if not livro %}
+  <div class="mb-3">
+    <label for="quantidade" class="form-label">Existem exemplares iguais? Quantos?</label>
+    <input type="number" class="form-control" id="quantidade" name="quantidade" value="1" min="1" max="50" style="max-width:140px">
+    <small class="text-muted">Deixe <strong>1</strong> se for único. Se colocar mais, o sistema cria cada exemplar com sufixo <em>“- 1”, “- 2”…</em> no título e códigos em sequência.</small>
+  </div>
+  {% endif %}
   <div class="mb-3">
     <label for="autor" class="form-label">Autor</label>
     <input type="text" class="form-control" id="autor" name="autor" value="{{ livro.autor if livro else '' }}">
@@ -33,6 +41,15 @@
     </select>
   </div>
   <div class="mb-3">
+    <label for="espessura" class="form-label">Espessura da lombada <small class="text-muted">(ajusta a faixa central da etiqueta)</small></label>
+    <select class="form-select" id="espessura" name="espessura">
+      <option value="fininho" {{ 'selected' if livro and livro.espessura=='fininho' else '' }}>📖 Fininho (lombada bem fina)</option>
+      <option value="fino" {{ 'selected' if livro and livro.espessura=='fino' else '' }}>📗 Fino</option>
+      <option value="medio" {{ 'selected' if not livro or livro.espessura=='medio' else '' }}>📘 Médio (padrão)</option>
+      <option value="grosso" {{ 'selected' if livro and livro.espessura=='grosso' else '' }}>📙 Grosso</option>
+    </select>
+  </div>
+  <div class="mb-3">
     <label for="situacao" class="form-label">Situação</label>
     <select class="form-select" id="situacao" name="situacao">
       <option value="disponível" {{ 'selected' if livro and livro.situacao=='disponível' else '' }}>Disponível</option>
@@ -42,4 +59,46 @@
   <button type="submit" class="btn btn-success">Salvar</button>
   <a href="{{ url_for('livros.listar_livros') }}" class="btn btn-secondary">Cancelar</a>
 </form>
+
+{% if not livro %}
+<script>
+(function () {
+  var inp = document.getElementById('titulo');
+  var box = document.getElementById('similares');
+  if (!inp || !box) return;
+  var timer = null;
+  inp.addEventListener('input', function () {
+    clearTimeout(timer);
+    var q = inp.value.trim();
+    if (q.length < 3) { box.innerHTML = ''; return; }
+    timer = setTimeout(function () {
+      fetch('{{ url_for("livros.similares") }}?q=' + encodeURIComponent(q))
+        .then(function (r) { return r.json(); })
+        .then(function (items) {
+          box.innerHTML = '';
+          if (!items.length) return;
+          var wrap = document.createElement('div');
+          wrap.className = 'alert alert-warning py-2 mb-0';
+          var strong = document.createElement('strong');
+          strong.textContent = '⚠️ Títulos parecidos já cadastrados — confira se não é duplicado:';
+          wrap.appendChild(strong);
+          var ul = document.createElement('ul');
+          ul.className = 'mb-1';
+          items.forEach(function (it) {
+            var li = document.createElement('li');
+            li.textContent = (it.bolinha || '') + ' ' + it.codigo + ' — ' + (it.titulo || '');
+            ul.appendChild(li);
+          });
+          wrap.appendChild(ul);
+          var s = document.createElement('small');
+          s.textContent = 'Se for o mesmo livro repetido, use o campo “exemplares iguais”.';
+          wrap.appendChild(s);
+          box.appendChild(wrap);
+        })
+        .catch(function () { box.innerHTML = ''; });
+    }, 350);
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}
