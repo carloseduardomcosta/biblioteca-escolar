@@ -12,7 +12,11 @@ Projeto sem fins lucrativos, em uso na **EEB Teófilo Nolasco de Almeida**.
 ## ✨ Funcionalidades
 
 - **Dashboard** com indicadores (livros, alunos, empréstimos ativos, atrasos) e gráficos.
-- **Livros**: cadastro, edição, importação em massa (Excel/CSV), código de barras automático.
+- **Livros**: cadastro, edição, importação em massa (Excel/CSV), código de barras automático,
+  **pesquisa avançada** (código, título, autor, categoria, ano de/até, grupo, espessura, situação
+  e status da etiqueta), **exemplares repetidos** (cria N cópias com sufixo "- 1", "- 2"…, no
+  cadastro ou na edição) e **alerta de títulos parecidos** ao digitar (evita duplicatas). A
+  numeração **reaproveita os vãos** deixados por exclusões.
 - **Alunos**: cadastro e importação em massa. O código do aluno é a **matrícula**
   (o mesmo número do cartão da merenda), lida pelo bipador.
 - **Empréstimos/Devoluções**: por leitura de código de barras (scan) ou manual.
@@ -101,14 +105,26 @@ Para bibliotecas sem organização e com milhares de livros, o fluxo recomendado
    Livros mostra o contador (ex: *"12 pendentes"*).
 3. **Imprimir em lote**: quando juntar o suficiente pra encher a folha, clique em
    **🏷️ Imprimir etiquetas pendentes**. Sai um PDF só com esses livros e eles são
-   marcados como impressos (o contador zera). Use **Reimprimir todas** se precisar refazer.
+   marcados como impressos (o contador zera). Use **Reimprimir todas** para refazer o acervo
+   inteiro, ou **🖨️ Imprimir selecionadas** para reimprimir apenas etiquetas específicas
+   (marque-as na lista).
 
-## 🏷️ Etiqueta dobrável
+## 🏷️ Etiqueta (dobra sobre a lombada)
 
-Cada etiqueta é feita para **papel A4 comum** (recorte e dobre no vinco central):
+Feita para **papel A4 comum** — **33 etiquetas por folha** (3 colunas). Cada etiqueta
+**envolve a lombada** do livro (da capa à contracapa):
 
-- **Frente** (fica visível no livro): bolinha ~1,5 cm na **cor da política** 🟢🟡🔴 + **número**.
-- **Verso**: **código de barras** (com o número embaixo), **título** e **categoria**.
+- **Aba da capa**: **código de barras** (Code128) com o **número legível** embaixo.
+- **Faixa central (lombada)**: o texto vertical **"Biblioteca Escola Gallotti"**. A **largura
+  dessa faixa acompanha a espessura do livro** — campo **Espessura** no cadastro
+  (`fininho` / `fino` / `médio` / `grosso`).
+- **Aba da contracapa**: **bolinha Ø1 cm** na **cor da política** 🟢🟡🔴.
+
+O tamanho total da etiqueta é fixo; só a distância entre o barcode e a bolinha (a lombada)
+muda conforme a espessura.
+
+**Impressão**: **🏷️ Imprimir etiquetas pendentes** (lote da fila), **Reimprimir todas**, ou
+**🖨️ Imprimir selecionadas** (marque na lista só os livros que quer reimprimir).
 
 ## 🌐 Publicação (proxy reverso)
 
@@ -121,7 +137,9 @@ recomenda-se **restringir por IP** (rede da escola/VPN) ou usar uma VPN.
 - Cadastro de usuário só na área administrativa (logado); sem cadastro público.
 - Cookies de sessão `Secure` + `HttpOnly` + `SameSite=Lax`.
 - Senhas com hash (werkzeug/scrypt). MySQL não exposto para fora.
-- Ações destrutivas (exclusão) só via `POST` com confirmação.
+- Exclusão de livro protegida: **página de confirmação dedicada + senha do usuário logado**
+  (evita exclusões acidentais; o código excluído deixa vão e não é reusado por reimpressão,
+  embora o cadastro reaproveite vãos ao criar novos livros).
 - **Nunca** versione o `.env` (contém senhas e chaves).
 
 ## 🗺️ Roadmap

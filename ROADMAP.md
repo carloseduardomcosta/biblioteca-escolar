@@ -21,7 +21,8 @@ A base tem que existir antes de cadastrar dados reais, senão retrabalho.
 - ✅ **Planilha-modelo do acervo** (`modelo-acervo-livros.xlsx`, na raiz e em `app/static`): abas Acervo/Instruções, lista suspensa das bolinhas na coluna `grupo`. Botão "Baixar modelo" serve o .xlsx
 - ✅ **Importador robusto**: aceita `.xlsx` e CSV, detecta codificação (não corrompe acento), ignora duplicatas (no arquivo e no banco), grupo vazio→🟢, retorno detalhado. TESTADO com acentos/travessão/3 grupos/duplicata — zero perda (openpyxl adicionado)
 - ✅ **Fluxo de produção** (para ~1-2k livros sem organização): código **automático sequencial** no cadastro (volta pro form após salvar); **fila de etiquetas pendentes** (`etiqueta_impressa`) — imprime em lote quando encher a folha, marca como impressas, contador na lista; **reimprimir todas** como fallback
-- ✅ **Etiqueta DOBRÁVEL** (papel A4 p/ recortar): frente = bolinha ~1,5cm na cor + número; verso = código de barras + título + categoria. Recorta a borda, dobra no vinco. TESTADA
+- ✅ **Etiqueta que envolve a lombada** (A4, **33/folha** em 3 colunas): aba da capa = código de barras + número (texto vetorial, legível); faixa central = "Biblioteca Escola Gallotti" na vertical, largura = **espessura da lombada** (campo `espessura`: fininho/fino/médio/grosso); aba da contracapa = bolinha Ø1 cm na cor. Sem título/categoria, sem tracejado. TESTADA
+- ✅ **Imprimir etiquetas SELECIONADAS** (marca livros específicos na lista) — além de pendentes/todas
 - ✅ Lista de livros aliviada (removida imagem de barcode por linha — pesava com milhares)
 - ✅ Código do livro: **sequencial automático**
 
@@ -65,9 +66,20 @@ Aproveitar a infra de proxy já existente em `/opt/infra/proxy` (nginx no `proxy
 
 ---
 
+## Sessão 2026-07-11 — Etiquetas, cadastro e busca ✅
+- ✅ **Etiqueta redesenhada** p/ dobrar sobre a lombada: barcode (capa) + "Biblioteca Escola Gallotti" na lombada (largura = espessura) + bolinha Ø1 cm (contracapa). Número do barcode em vetor (nítido). **3 colunas / 33 por folha A4**, bolinha ancorada à direita (sem sobra), sem tracejado.
+- ✅ **Campo `espessura`** no livro (ENUM fininho/fino/médio/grosso; migração aplicada, default `medio`) — ajusta a faixa central da etiqueta. Disponível no cadastro e na edição.
+- ✅ **Exemplares repetidos**: no cadastro ("quantos iguais?") e na edição ("total") o sistema cria N cópias com sufixo "- 1", "- 2"… e códigos próprios.
+- ✅ **Alerta de títulos parecidos** ao digitar (rota `/livros/similares`) — anti-duplicata.
+- ✅ **Reaproveitamento de vãos na numeração** (`_proximos_codigos`): novo código preenche o menor buraco antes de estender.
+- ✅ **Exclusão protegida**: página de confirmação + **senha do usuário** (`check_password_hash`) — motivada por exclusão acidental do código 25.
+- ✅ **Imprimir etiquetas selecionadas** (checkbox por linha; pega marcadas de todas as páginas do DataTable).
+- ✅ **Pesquisa avançada** de livros (código, título, autor, categoria, ano de/até, grupo, espessura, situação, etiqueta + busca geral).
+- 🟢 Sobrou: PNG do barcode não é apagado ao excluir o livro (órfão) — cosmético.
+
 ## Segurança (revisão 2026-07-09)
 Corrigido: ✅ cadastro público removido (era `/auth/register` na tela de login) ✅ `SQL echo` desligado (vazava SQL/hashes no log) ✅ cookie de sessão `Secure/HttpOnly/SameSite=Lax` ✅ MySQL não exposto ✅ porta 65000 só localhost ✅ isolamento multi-tenant testado.
-Corrigido tb: ✅ **exclusão agora via POST+confirmação** (GET no caminho → 405) ✅ **papel de admin real** (coluna `is_admin`; `/usuarios` só p/ admin; `macedo`=admin; novos usuários = bibliotecário comum, com checkbox no form).
+Corrigido tb: ✅ **exclusão via POST+confirmação** (evoluída em 11/07 → página de confirmação + **senha do usuário**, ver "Sessão 2026-07-11") ✅ **papel de admin real** (coluna `is_admin`; `/usuarios` só p/ admin; `macedo`=admin; novos usuários = bibliotecário comum, com checkbox no form).
 Aberto (prioridade): 🟡 **sem rate-limit no login** (brute force; usar regra Cloudflare ou Flask-Limiter) · 🟢 IP real nos acessos (ProxyFix p/ CF-Connecting-IP) · 🟢 container roda como root · 🟢 CSRF (mitigado por SameSite=Lax; habilitar CSRFProtect como reforço).
 
 ## Ordem sugerida

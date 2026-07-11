@@ -16,28 +16,29 @@ Feito para quem opera a biblioteca — sem termos técnicos.
 
 ---
 
-## 🏷️ Como é a etiqueta (dobrável)
+## 🏷️ Como é a etiqueta (envolve a lombada)
 
-Cada etiqueta é impressa em **papel A4 comum**. Você **recorta na borda** e **dobra no vinco**
-(a linha tracejada do meio). Aí ela fica com duas faces:
+Impressa em **papel A4 comum** — você **recorta na borda**. A etiqueta **dá a volta pela
+lombada**: uma aba fica na **capa**, o meio na **lombada** e a outra aba na **contracapa**.
 
 ```
-        FRENTE (fica à vista)     ┊      VERSO (atrás)
-   ┌──────────────────────────┊──────────────────────────┐
-   │                          ┊   ║║█║██║█║║█║██║║█║█║     │  ← bipar aqui
-   │          ╭──────╮        ┊        0 0 0 1            │  (número também
-   │          │  ●   │ ~1,5cm  ┊                          │   embaixo do código)
-   │          │      │ na cor  ┊   Dom Casmurro           │  ← título
-   │          ╰──────╯        ┊   Romance                │  ← categoria
-   │            0001          ┊                          │  ← número do livro
-   └──────────────────────────┊──────────────────────────┘
-          ✂ recorta na borda   ↑ dobra no vinco
-
-   Bolinha:  🟢 pode levar pra casa    🟡 só na biblioteca    🔴 professor
+       CAPA            LOMBADA          CONTRACAPA
+  ┌───────────────┬──────────────┬────────────────┐
+  │ ║█║██║█║║█║██  │  B    E      │                │
+  │   0 0 0 1      │  i    s      │       ●        │  ← bolinha (cor do grupo)
+  │               │  b    c ...  │                │
+  └───────────────┴──────────────┴────────────────┘
+    código de        "Biblioteca      🟢 leva pra casa
+    barras +         Escola Gallotti"  🟡 só na biblioteca
+    número           (na vertical)     🔴 professor
 ```
 
-- **Frente:** a bolinha na cor do grupo + o número do livro (pra achar na estante).
-- **Verso:** o código de barras (pra bipar) + título + categoria.
+- **Capa:** o **código de barras** (pra bipar) com o **número** embaixo.
+- **Lombada:** o nome **"Biblioteca Escola Gallotti"** na vertical. A **largura acompanha a
+  espessura do livro** — você escolhe **Fininho / Fino / Médio / Grosso** no cadastro.
+- **Contracapa:** a **bolinha** na cor do grupo (pra achar o livro na estante).
+
+> Cabem **33 etiquetas por folha A4** (3 colunas).
 
 ---
 
@@ -49,14 +50,22 @@ Ideal para organizar muitos livros do zero: **pega o livro → dá entrada → i
 1. Menu **Livros → ➕ Novo Livro**.
 2. O **código já vem preenchido** automaticamente (`0001`, `0002`, `0003`…). **Deixe como está.**
 3. Preencha **Título**, **Autor** e **Categoria** (gênero).
+   - 💡 Ao digitar o título, se já existir algo **parecido**, o sistema **avisa** — assim você
+     confere se não é duplicado antes de salvar.
 4. Escolha o **Grupo (bolinha)**:
    - 🟢 **Pode levar pra casa** — empréstimo normal
    - 🟡 **Só na biblioteca** — consulta local (não empresta)
    - 🔴 **Não empresta** — livro de professor / restrito
-5. Clique em **Salvar**. O formulário volta vazio, já com o próximo número.
-6. Pegue o próximo livro e repita. **Vá empilhando os livros já cadastrados, na ordem.**
+5. Escolha a **Espessura** da lombada (**Fininho / Fino / Médio / Grosso**) — isso ajusta a
+   faixa do meio da etiqueta ao tamanho do livro.
+6. **Tem vários exemplares iguais?** No campo *"Existem exemplares iguais? Quantos?"* coloque a
+   quantidade. O sistema cria todos de uma vez, numerando **"- 1", "- 2", "- 3"…** no título e
+   dando um código pra cada. (Deixe **1** se for único.)
+7. Clique em **Salvar**. O formulário volta vazio, já com o próximo número.
+8. Pegue o próximo livro e repita. **Vá empilhando os livros já cadastrados, na ordem.**
 
 > 💡 O sistema cuida da numeração — você não precisa pensar no número nem anotar nada antes.
+> Se um código foi excluído e ficou um "buraco", o próximo cadastro **reaproveita** esse número.
 
 ### Imprimir as etiquetas em lote
 1. Quando juntar um bom número (o que encher a folha, ~10 a 14 livros), volte em **Livros**.
@@ -66,7 +75,8 @@ Ideal para organizar muitos livros do zero: **pega o livro → dá entrada → i
 5. **Cole** no livro (cor pra frente, código de barras pro verso), seguindo a ordem da pilha.
 6. O contador de pendentes zera. Siga para o próximo lote.
 
-> Precisa reimprimir tudo (ex: refez uma etiqueta)? Use **Reimprimir todas**.
+> Precisa refazer só algumas? Marque-as na lista e use **🖨️ Imprimir selecionadas**.
+> Precisa reimprimir o acervo inteiro? Use **Reimprimir todas**.
 
 ---
 
@@ -106,9 +116,14 @@ Antes de encarar centenas de livros, **cataloge só uns 10** e valide:
 
 ## ❓ Dúvidas rápidas
 
-- **Errei o grupo/título de um livro?** Menu **Livros**, botão **Editar** na linha do livro.
-- **Colei uma etiqueta torta / estragou?** Edite nada — é só reimprimir: use **Reimprimir todas**
-  ou cadastre/edite e imprima pendentes.
-- **Quantas etiquetas cabem na folha?** Cerca de **14 por folha A4**.
+- **Errei o grupo/título/espessura de um livro?** Menu **Livros**, botão **Editar** na linha.
+- **Preciso achar um livro?** No topo de **Livros**, abra **🔎 Pesquisa avançada** e filtre por
+  título, autor, código, categoria, ano, grupo, espessura, situação ou status da etiqueta.
+- **Colei uma etiqueta torta / estragou?** É só reimprimir: **marque** o(s) livro(s) na lista e
+  clique em **🖨️ Imprimir selecionadas** (ou **Reimprimir todas** para o acervo inteiro).
+- **Preciso excluir um livro?** Botão **Excluir** → abre uma confirmação que **pede a sua senha**
+  (proteção contra exclusão acidental). Atenção: o número do livro excluído fica "vago" (mas o
+  próximo cadastro reaproveita esse número).
+- **Quantas etiquetas cabem na folha?** **33 por folha A4** (3 colunas).
 - **Perdi a conta de qual livro etiquetar?** A lista de **Livros** mostra a coluna **Etiqueta**
   (🟠 pendente / ✅ impressa) e o contador de pendentes no topo.
