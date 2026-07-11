@@ -287,12 +287,13 @@ def _trunc(texto, fonte, tam, larg_max):
 
 
 def _pdf_etiquetas_dobraveis(livros, pasta):
-    """Desenha uma folha A4 de ETIQUETAS DOBRÁVEIS e retorna o buffer PDF.
+    """Desenha uma folha A4 de ETIQUETAS e retorna o buffer PDF.
 
-    Cada etiqueta é um retângulo com um vinco central (dobra):
-      • FRENTE (esquerda): bolinha ~1,5 cm na cor da política + número do livro
-      • VERSO  (direita):  código de barras (com nº) + título + categoria
-    Recorte a borda externa e dobre no vinco.
+    Etiqueta em tira única (altura máx. 2 cm), da esquerda p/ direita:
+      • código de barras (Code128) + número legível embaixo;
+      • frase vertical "Biblioteca / Escola Gallotti" no meio;
+      • bolinha Ø1 cm na cor da política (à direita).
+    Recorte pela borda externa.
     """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
@@ -307,9 +308,16 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
     cols = 2
     gut_x, gut_y = 6 * mm, 5 * mm
     label_w = (PW - 2 * margin - (cols - 1) * gut_x) / cols
-    label_h = 32 * mm
-    panel_w = label_w / 2
+    label_h = 20 * mm                        # altura máxima: 2 cm
     rows = int((PH - 2 * margin + gut_y) // (label_h + gut_y))
+
+    # Geometria horizontal:
+    #   código de barras à ESQUERDA; bolinha Ø1 cm (raio 5 mm) à DIREITA;
+    #   frase vertical "Biblioteca / Escola Gallotti" no meio.
+    bc_x       = 3 * mm                        # margem esquerda do barcode
+    bc_w       = 42 * mm                       # largura do barcode
+    bolinha_cx = label_w - 8 * mm              # centro X da bolinha (direita)
+    frase_cx   = (bc_x + bc_w + bolinha_cx - 5 * mm) / 2  # meio entre barcode e bolinha
 
     col = row = 0
     for livro in livros:
@@ -325,40 +333,41 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
 
         lx = margin + col * (label_w + gut_x)
         ly_top = PH - margin - row * (label_h + gut_y)
+        cy = ly_top - label_h / 2             # meio vertical da etiqueta
 
         # borda externa (linha de corte)
         c.setDash()
         c.setLineWidth(0.5)
         c.setStrokeColorRGB(0.7, 0.7, 0.7)
         c.rect(lx, ly_top - label_h, label_w, label_h)
-        # vinco central (dobra) — tracejado
-        c.setDash(2, 2)
-        c.setStrokeColorRGB(0.6, 0.6, 0.6)
-        c.line(lx + panel_w, ly_top, lx + panel_w, ly_top - label_h)
-        c.setDash()
 
-        # ── FRENTE (esquerda): bolinha + número ──
+        # ── bolinha Ø1 cm (cor da política) ──
         r, g, b = _COR_POLITICA.get(livro.politica, (0.5, 0.5, 0.5))
-        cx = lx + panel_w / 2
         c.setFillColorRGB(r, g, b)
-        c.circle(cx, ly_top - 13 * mm, 7.5 * mm, fill=1, stroke=0)
-        c.setFillColorRGB(0, 0, 0)
-        c.setFont('Helvetica-Bold', 12)
-        c.drawCentredString(cx, ly_top - 28 * mm, livro.codigo)
+        c.circle(lx + bolinha_cx, cy, 5 * mm, fill=1, stroke=0)
 
-        # ── VERSO (direita): código de barras + título + categoria ──
-        rx = lx + panel_w
-        if img_path:
-            c.drawImage(img_path, rx + 3 * mm, ly_top - 16 * mm,
-                        width=panel_w - 6 * mm, height=12 * mm,
-                        preserveAspectRatio=False, mask='auto')
+        # ── frase vertical no meio: "Biblioteca" / "Escola Gallotti" ──
+        c.saveState()
+        c.translate(lx + frase_cx, cy)
+        c.rotate(90)
         c.setFillColorRGB(0, 0, 0)
-        c.setFont('Helvetica', 7.5)
-        c.drawString(rx + 3 * mm, ly_top - 21 * mm,
-                     _trunc(livro.titulo, 'Helvetica', 7.5, panel_w - 6 * mm))
-        c.setFont('Helvetica-Oblique', 7)
-        c.drawString(rx + 3 * mm, ly_top - 27 * mm,
-                     _trunc(livro.categoria or '', 'Helvetica-Oblique', 7, panel_w - 6 * mm))
+        c.setFont('Helvetica-Bold', 7)
+        c.drawCentredString(0, 1.3 * mm, 'Biblioteca')
+        c.setFont('Helvetica', 6.5)
+        c.drawCentredString(0, -2.7 * mm, 'Escola Gallotti')
+        c.restoreState()
+
+        # ── código de barras à ESQUERDA + número em vetor (nítido) embaixo ──
+        if img_path:
+            label_bottom = ly_top - label_h
+            # barras (PNG só com as barras, sem texto embutido)
+            c.drawImage(img_path, lx + bc_x, label_bottom + 6 * mm,
+                        width=bc_w, height=11 * mm,
+                        preserveAspectRatio=False, mask='auto')
+            # número legível, desenhado como texto vetorial (não distorce)
+            c.setFillColorRGB(0, 0, 0)
+            c.setFont('Helvetica-Bold', 8)
+            c.drawCentredString(lx + bc_x + bc_w / 2, label_bottom + 2.5 * mm, livro.codigo)
 
         # avança na grade
         col += 1
@@ -376,6 +385,40 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
 
 def _responder_pdf(buffer, nome):
     return send_file(buffer, as_attachment=True, download_name=nome, mimetype='application/pdf')
+
+
+@bp.route('/triagem', methods=['GET', 'POST'])
+def triagem_etiquetas():
+    """Tela de triagem das cores (bolinhas) ANTES de imprimir.
+    Mostra só os livros com etiqueta pendente e deixa ajustar a política
+    (🟢/🟡/🔴) de cada um em lote, olhando os livros na mesa."""
+    if request.method == 'POST':
+        with SessionLocal() as db:
+            pendentes = (db.query(Livro)
+                           .filter_by(escola_id=_escola_id(), etiqueta_impressa=False)
+                           .order_by(Livro.codigo).all())
+            if not pendentes:
+                flash('Nenhuma etiqueta pendente para ajustar.', 'info')
+                return redirect(url_for('livros.listar_livros'))
+            alterados = 0
+            for livro in pendentes:
+                nova = request.form.get(f'politica_{livro.id}')
+                if nova:
+                    nova = _parse_politica(nova, livro.politica)
+                    if nova != livro.politica:
+                        livro.politica = nova
+                        alterados += 1
+            db.commit()
+        flash(f'✅ Cores salvas ({alterados} livro(s) alterado(s)).', 'success')
+        if request.form.get('acao') == 'imprimir':
+            return redirect(url_for('livros.etiquetas_pendentes'))
+        return redirect(url_for('livros.triagem_etiquetas'))
+
+    with SessionLocal() as db:
+        pendentes = (db.query(Livro)
+                       .filter_by(escola_id=_escola_id(), etiqueta_impressa=False)
+                       .order_by(Livro.codigo).all())
+    return render_template('livros/triagem.html', pendentes=pendentes)
 
 
 @bp.route('/etiquetas/pendentes', methods=['GET'])

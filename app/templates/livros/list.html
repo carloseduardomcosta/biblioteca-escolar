@@ -6,6 +6,9 @@
 <div class="mb-3">
   <a href="{{ url_for('livros.novo_livro') }}" class="btn btn-primary me-2">➕ Novo Livro</a>
   <a href="{{ url_for('livros.importar_livros_form') }}" class="btn btn-secondary me-2">Importar planilha</a>
+  <a href="{{ url_for('livros.triagem_etiquetas') }}" class="btn btn-warning me-1">
+    🎨 Revisar cores{% if pendentes %} ({{ pendentes }}){% endif %}
+  </a>
   <a href="{{ url_for('livros.etiquetas_pendentes') }}" class="btn btn-success me-1">
     🏷️ Imprimir etiquetas pendentes{% if pendentes %} ({{ pendentes }}){% endif %}
   </a>

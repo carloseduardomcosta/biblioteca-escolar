@@ -1,0 +1,73 @@
+<!-- templates/livros/triagem.html -->
+{% extends 'base.html' %}
+{% block title %}Triagem de cores{% endblock %}
+{% block content %}
+<h1>🎨 Triagem de cores (bolinhas)</h1>
+<p class="text-muted">
+  Ajuste a cor de cada livro <strong>antes de imprimir</strong>.
+  Aparecem aqui só os livros com etiqueta <strong>pendente</strong>.
+</p>
+
+{% if not pendentes %}
+  <div class="alert alert-info">Nenhuma etiqueta pendente. Tudo já foi impresso. 🎉</div>
+  <a href="{{ url_for('livros.listar_livros') }}" class="btn btn-secondary">Voltar</a>
+{% else %}
+<form method="post">
+  <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+    <span class="fw-bold">Marcar todos como:</span>
+    <button type="button" class="btn btn-sm btn-success" onclick="marcarTodos('emprestavel')">🟢 Levar pra casa</button>
+    <button type="button" class="btn btn-sm btn-warning" onclick="marcarTodos('consulta')">🟡 Só na biblioteca</button>
+    <button type="button" class="btn btn-sm btn-danger" onclick="marcarTodos('restrito')">🔴 Não empresta</button>
+  </div>
+
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Título</th>
+        <th>Autor</th>
+        <th style="min-width:260px">Grupo (bolinha)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for livro in pendentes %}
+      <tr>
+        <td>{{ livro.codigo }}</td>
+        <td>{{ livro.titulo }}</td>
+        <td>{{ livro.autor }}</td>
+        <td>
+          <div class="btn-group btn-group-sm" role="group" aria-label="Cor do livro {{ livro.codigo }}">
+            <input type="radio" class="btn-check" name="politica_{{ livro.id }}" id="p_{{ livro.id }}_e"
+                   value="emprestavel" autocomplete="off" {{ 'checked' if livro.politica=='emprestavel' else '' }}>
+            <label class="btn btn-outline-success" for="p_{{ livro.id }}_e" title="Pode levar pra casa">🟢</label>
+
+            <input type="radio" class="btn-check" name="politica_{{ livro.id }}" id="p_{{ livro.id }}_c"
+                   value="consulta" autocomplete="off" {{ 'checked' if livro.politica=='consulta' else '' }}>
+            <label class="btn btn-outline-warning" for="p_{{ livro.id }}_c" title="Só na biblioteca">🟡</label>
+
+            <input type="radio" class="btn-check" name="politica_{{ livro.id }}" id="p_{{ livro.id }}_r"
+                   value="restrito" autocomplete="off" {{ 'checked' if livro.politica=='restrito' else '' }}>
+            <label class="btn btn-outline-danger" for="p_{{ livro.id }}_r" title="Não empresta (professor)">🔴</label>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="d-flex flex-wrap gap-2">
+    <button type="submit" name="acao" value="salvar" class="btn btn-primary">💾 Salvar cores</button>
+    <button type="submit" name="acao" value="imprimir" class="btn btn-success">🏷️ Salvar e imprimir pendentes</button>
+    <a href="{{ url_for('livros.listar_livros') }}" class="btn btn-outline-secondary">Cancelar</a>
+  </div>
+</form>
+
+<script>
+function marcarTodos(valor){
+  document.querySelectorAll('input.btn-check[value="' + valor + '"]').forEach(function(r){
+    r.checked = true;
+  });
+}
+</script>
+{% endif %}
+{% endblock %}
