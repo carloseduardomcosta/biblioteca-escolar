@@ -14,3 +14,7 @@ protheus_data/   # caso use algum volume para Prometheus
 # Ignorar IDEs / editores
 .vscode/
 *.log
+
+# Barcodes gerados em runtime (artefatos regeneráveis a partir do código)
+app/static/barcodes/*.png
+!app/static/barcodes/.gitkeep
