@@ -20,6 +20,13 @@
     <small class="text-muted">Deixe <strong>1</strong> se for único. Se colocar mais, o sistema cria cada exemplar com sufixo <em>“- 1”, “- 2”…</em> no título e códigos em sequência.</small>
   </div>
   {% endif %}
+  {% if livro %}
+  <div class="mb-3">
+    <label for="total_exemplares" class="form-label">Exemplares iguais no total (inclui este)</label>
+    <input type="number" class="form-control" id="total_exemplares" name="total_exemplares" value="1" min="1" max="50" style="max-width:140px">
+    <small class="text-muted">Cadastrou como único mas há várias cópias? Informe o total: este vira <em>“- 1”</em> e o restante é criado em sequência de código. Deixe <strong>1</strong> para não criar nada.</small>
+  </div>
+  {% endif %}
   <div class="mb-3">
     <label for="autor" class="form-label">Autor</label>
     <input type="text" class="form-control" id="autor" name="autor" value="{{ livro.autor if livro else '' }}">

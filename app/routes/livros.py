@@ -5,7 +5,7 @@ from models.aluno import Aluno
 from models.livro import Livro
 from utils.barcode import gerar_barcode
 from utils.planilha import linhas_planilha, parse_ano
-import os, csv, io
+import os, csv, io, re
 from reportlab.pdfgen import canvas
 from flask import current_app, send_file
 from reportlab.lib.pagesizes import A4
@@ -281,7 +281,7 @@ def editar_livro(codigo):
         return redirect(url_for('livros.listar_livros'))
 
     if request.method == 'POST':
-        livro.titulo = request.form['titulo'].strip()
+        titulo_in = request.form['titulo'].strip()
         livro.autor = request.form.get('autor', livro.autor).strip()
         ano = request.form.get('ano_publicacao', livro.ano_publicacao)
         livro.ano_publicacao = int(ano) if ano else None
@@ -291,10 +291,47 @@ def editar_livro(codigo):
             livro.politica = _parse_politica(request.form.get('politica'), livro.politica)
         if request.form.get('espessura'):
             livro.espessura = _parse_espessura(request.form.get('espessura'), livro.espessura)
+
+        # Exemplares iguais: se o total informado for > 1, este vira "- 1" e o
+        # restante é criado em sequência (títulos "- 2", "- 3"..., códigos padrão).
+        try:
+            total = int(request.form.get('total_exemplares', '1'))
+        except (TypeError, ValueError):
+            total = 1
+        total = max(1, min(total, 50))
+        base = re.sub(r'\s*-\s*\d+\s*$', '', titulo_in).strip()   # remove sufixo "- N" se houver
+        livro.titulo = f'{base} - 1' if total >= 2 else titulo_in
+
+        pasta = os.path.join(current_app.static_folder, 'barcodes')
+        os.makedirs(pasta, exist_ok=True)
+
         with SessionLocal() as db:
             db.merge(livro)
-            db.commit()
-            flash('Livro atualizado com sucesso!', 'success')
+            novos = []
+            if total >= 2:
+                seed = _proximo_codigo(db, livro.escola_id)
+                inicio, largura = int(seed), len(seed)
+                for i in range(total - 1):
+                    cod = str(inicio + i).zfill(largura)
+                    arq = gerar_barcode(cod, pasta)
+                    db.add(Livro(
+                        escola_id=livro.escola_id, codigo=cod,
+                        titulo=f'{base} - {i + 2}', autor=livro.autor,
+                        ano_publicacao=livro.ano_publicacao, categoria=livro.categoria,
+                        situacao='disponível', politica=livro.politica,
+                        espessura=livro.espessura, barcode_img=arq,
+                    ))
+                    novos.append(cod)
+            try:
+                db.commit()
+                if novos:
+                    flash(f'✅ Livro atualizado e +{len(novos)} exemplares criados '
+                          f'({novos[0]}–{novos[-1]}). Total agora: {total}.', 'success')
+                else:
+                    flash('Livro atualizado com sucesso!', 'success')
+            except Exception:
+                db.rollback()
+                flash('Erro ao salvar. Verifique se algum código já existe.', 'danger')
         return redirect(url_for('livros.listar_livros'))
 
     return render_template('livros/form.html', livro=livro)
