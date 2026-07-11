@@ -59,18 +59,36 @@ def _parse_espessura(valor, default='medio'):
     return v if v in ('fininho', 'fino', 'medio', 'grosso') else default
 
 
-def _proximo_codigo(db, escola_id):
-    """Sugere o próximo código sequencial da escola (ex: 0001, 0002...).
-    Considera apenas códigos numéricos; ignora os que não são."""
+def _codigos_numericos(db, escola_id):
+    """Conjunto dos códigos numéricos já usados + largura do zero-padding."""
     codigos = db.query(Livro.codigo).filter_by(escola_id=escola_id).all()
-    maior = 0
+    usados = set()
     largura = 4
     for (cod,) in codigos:
         c = (cod or '').strip()
         if c.isdigit():
-            maior = max(maior, int(c))
+            usados.add(int(c))
             largura = max(largura, len(c))
-    return str(maior + 1).zfill(largura)
+    return usados, largura
+
+
+def _proximos_codigos(db, escola_id, n=1):
+    """Retorna n códigos livres, REAPROVEITANDO os vãos da numeração (menores
+    primeiro) e estendendo após o maior quando não houver mais vãos."""
+    usados, largura = _codigos_numericos(db, escola_id)
+    livres = []
+    candidato = 1
+    while len(livres) < n:
+        if candidato not in usados:
+            livres.append(candidato)
+            usados.add(candidato)          # reserva localmente p/ não repetir
+        candidato += 1
+    return [str(x).zfill(largura) for x in livres]
+
+
+def _proximo_codigo(db, escola_id):
+    """Próximo código livre (reaproveita o menor vão disponível)."""
+    return _proximos_codigos(db, escola_id, 1)[0]
 
 
 @bp.route('/template', methods=['GET'])
@@ -223,12 +241,10 @@ def novo_livro():
                 # exemplar único: usa o código informado no formulário
                 itens = [(codigo, titulo)]
             else:
-                # vários exemplares iguais: título recebe sufixo "- N" e os
-                # códigos seguem a sequência padrão da escola.
-                base = _proximo_codigo(db, _escola_id())
-                inicio, largura = int(base), len(base)
-                itens = [(str(inicio + i).zfill(largura), f'{titulo} - {i + 1}')
-                         for i in range(qtd)]
+                # vários exemplares iguais: título recebe sufixo "- N"; os
+                # códigos reaproveitam os vãos livres da numeração.
+                codigos = _proximos_codigos(db, _escola_id(), qtd)
+                itens = [(codigos[i], f'{titulo} - {i + 1}') for i in range(qtd)]
             for cod_i, tit_i in itens:
                 _mk(cod_i, tit_i, db)
             try:
@@ -237,8 +253,9 @@ def novo_livro():
                     flash(f'📗 Livro "{titulo}" ({itens[0][0]}) cadastrado! '
                           f'Etiqueta na fila de impressão.', 'success')
                 else:
+                    cods = ', '.join(cod for cod, _ in itens)
                     flash(f'📚 {qtd} exemplares de "{titulo}" cadastrados '
-                          f'({itens[0][0]}–{itens[-1][0]}). Etiquetas na fila.', 'success')
+                          f'(códigos: {cods}). Etiquetas na fila.', 'success')
             except Exception:
                 db.rollback()
                 flash('Erro ao criar livro(s). Verifique se algum código já existe.', 'danger')
@@ -310,10 +327,8 @@ def editar_livro(codigo):
             db.merge(livro)
             novos = []
             if total >= 2:
-                seed = _proximo_codigo(db, livro.escola_id)
-                inicio, largura = int(seed), len(seed)
-                for i in range(total - 1):
-                    cod = str(inicio + i).zfill(largura)
+                codigos = _proximos_codigos(db, livro.escola_id, total - 1)
+                for i, cod in enumerate(codigos):
                     arq = gerar_barcode(cod, pasta)
                     db.add(Livro(
                         escola_id=livro.escola_id, codigo=cod,
@@ -327,7 +342,7 @@ def editar_livro(codigo):
                 db.commit()
                 if novos:
                     flash(f'✅ Livro atualizado e +{len(novos)} exemplares criados '
-                          f'({novos[0]}–{novos[-1]}). Total agora: {total}.', 'success')
+                          f'(códigos: {", ".join(novos)}). Total agora: {total}.', 'success')
                 else:
                     flash('Livro atualizado com sucesso!', 'success')
             except Exception:
