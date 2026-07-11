@@ -14,6 +14,7 @@
   </a>
   <a href="{{ url_for('livros.exportar_livros_pdf') }}" class="btn btn-outline-secondary btn-sm"
      onclick="return confirm('Reimprimir as etiquetas de TODO o acervo?');">Reimprimir todas</a>
+  <button type="button" class="btn btn-outline-primary btn-sm" onclick="imprimirSelecionadas()">🖨️ Imprimir selecionadas</button>
 </div>
 
 {% if pendentes %}
@@ -27,6 +28,7 @@
 <table id="livrosTable" class="table table-striped datatable">
   <thead>
     <tr>
+      <th><input type="checkbox" id="selAll" title="Selecionar todos" onchange="toggleAll(this)" onclick="event.stopPropagation()"></th>
       <th>Código</th>
       <th>Título</th>
       <th>Autor</th>
@@ -41,6 +43,7 @@
   <tbody>
     {% for livro in livros %}
     <tr>
+      <td><input type="checkbox" class="sel-livro" value="{{ livro.codigo }}"></td>
       <td>{{ livro.codigo }}</td>
       <td>{{ livro.titulo }}</td>
       <td>{{ livro.autor }}</td>
@@ -60,4 +63,29 @@
     {% endfor %}
   </tbody>
 </table>
+
+<script>
+// marca/desmarca todas (em todas as páginas do DataTable)
+function toggleAll(cb){
+  $('#livrosTable').DataTable().$('input.sel-livro').prop('checked', cb.checked);
+}
+// gera o PDF só das etiquetas marcadas (pega as marcadas de todas as páginas)
+function imprimirSelecionadas(){
+  var marcadas = $('#livrosTable').DataTable().$('input.sel-livro:checked');
+  if (marcadas.length === 0) {
+    alert('Selecione ao menos uma etiqueta na coluna ✓.');
+    return;
+  }
+  var form = document.createElement('form');
+  form.method = 'post';
+  form.action = '{{ url_for("livros.etiquetas_selecionadas") }}';
+  marcadas.each(function () {
+    var i = document.createElement('input');
+    i.type = 'hidden'; i.name = 'codigos'; i.value = this.value;
+    form.appendChild(i);
+  });
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
 {% endblock %}

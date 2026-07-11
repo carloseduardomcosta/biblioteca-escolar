@@ -437,11 +437,6 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
         c.setLineWidth(0.5)
         c.setStrokeColorRGB(0.7, 0.7, 0.7)
         c.rect(lx, label_bottom, label_w, label_h)
-        # vinco de dobra (tracejado) — só o do lado do barcode
-        c.setDash(2, 2)
-        c.setStrokeColorRGB(0.6, 0.6, 0.6)
-        c.line(band_left, ly_top, band_left, label_bottom)
-        c.setDash()
 
         # ── código de barras na aba da CAPA (esquerda) + número embaixo ──
         if img_path:
@@ -558,3 +553,27 @@ def exportar_livros_pdf():
             livro.etiqueta_impressa = True
         db.commit()
     return _responder_pdf(buffer, 'etiquetas-todas.pdf')
+
+
+@bp.route('/etiquetas/selecionadas', methods=['POST'])
+def etiquetas_selecionadas():
+    """Reimprime só as etiquetas dos livros escolhidos (códigos enviados na
+    seleção da lista). Marca as impressas."""
+    codigos = [c.strip() for c in request.form.getlist('codigos') if c.strip()]
+    if not codigos:
+        flash('Selecione ao menos uma etiqueta para imprimir.', 'warning')
+        return redirect(url_for('livros.listar_livros'))
+    pasta = os.path.join(current_app.static_folder, 'barcodes')
+    os.makedirs(pasta, exist_ok=True)
+    with SessionLocal() as db:
+        livros = (db.query(Livro)
+                    .filter(Livro.escola_id == _escola_id(), Livro.codigo.in_(codigos))
+                    .order_by(Livro.codigo).all())
+        if not livros:
+            flash('Nenhuma etiqueta encontrada para a seleção.', 'warning')
+            return redirect(url_for('livros.listar_livros'))
+        buffer = _pdf_etiquetas_dobraveis(livros, pasta)
+        for livro in livros:
+            livro.etiqueta_impressa = True
+        db.commit()
+    return _responder_pdf(buffer, 'etiquetas-selecionadas.pdf')
