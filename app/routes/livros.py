@@ -1,6 +1,7 @@
 from flask import Blueprint, request, render_template, redirect, url_for, flash, current_app, Response, jsonify
 from flask_login import current_user
 from werkzeug.security import check_password_hash
+from sqlalchemy import or_
 from config.settings import SessionLocal
 from models.aluno import Aluno
 from models.livro import Livro
@@ -197,11 +198,64 @@ def importar_livros():
 
 @bp.route('/', methods=['GET'])
 def listar_livros():
-    """Lista todos os livros da escola"""
+    """Lista os livros da escola com PESQUISA AVANÇADA por vários campos
+    (busca geral, código, título, autor, categoria, ano de/até, grupo,
+    espessura, situação e status da etiqueta)."""
+    a = request.args
+    f_q         = a.get('q', '').strip()
+    f_codigo    = a.get('codigo', '').strip()
+    f_titulo    = a.get('titulo', '').strip()
+    f_autor     = a.get('autor', '').strip()
+    f_categoria = a.get('categoria', '').strip()
+    f_ano       = a.get('ano', '').strip()
+    f_ano_ate   = a.get('ano_ate', '').strip()
+    f_politica  = a.get('politica', '').strip()
+    f_espessura = a.get('espessura', '').strip()
+    f_situacao  = a.get('situacao', '').strip()
+    f_etiqueta  = a.get('etiqueta', '').strip()
+
     with SessionLocal() as db:
-        livros = db.query(Livro).filter_by(escola_id=_escola_id()).order_by(Livro.codigo).all()
-        pendentes = db.query(Livro).filter_by(escola_id=_escola_id(), etiqueta_impressa=False).count()
-    return render_template('livros/list.html', livros=livros, pendentes=pendentes)
+        query = db.query(Livro).filter_by(escola_id=_escola_id())
+        if f_q:
+            like = f'%{f_q}%'
+            query = query.filter(or_(
+                Livro.titulo.ilike(like), Livro.autor.ilike(like),
+                Livro.codigo.ilike(like), Livro.categoria.ilike(like)))
+        if f_codigo:
+            query = query.filter(Livro.codigo.ilike(f'%{f_codigo}%'))
+        if f_titulo:
+            query = query.filter(Livro.titulo.ilike(f'%{f_titulo}%'))
+        if f_autor:
+            query = query.filter(Livro.autor.ilike(f'%{f_autor}%'))
+        if f_categoria:
+            query = query.filter(Livro.categoria.ilike(f'%{f_categoria}%'))
+        if f_ano.isdigit():
+            query = query.filter(Livro.ano_publicacao >= int(f_ano))
+        if f_ano_ate.isdigit():
+            query = query.filter(Livro.ano_publicacao <= int(f_ano_ate))
+        if f_politica in ('emprestavel', 'consulta', 'restrito'):
+            query = query.filter(Livro.politica == f_politica)
+        if f_espessura in ('fininho', 'fino', 'medio', 'grosso'):
+            query = query.filter(Livro.espessura == f_espessura)
+        if f_situacao in ('disponível', 'emprestado'):
+            query = query.filter(Livro.situacao == f_situacao)
+        if f_etiqueta == 'impressa':
+            query = query.filter(Livro.etiqueta_impressa.is_(True))
+        elif f_etiqueta == 'pendente':
+            query = query.filter(Livro.etiqueta_impressa.is_(False))
+
+        livros = query.order_by(Livro.codigo).all()
+        pendentes = (db.query(Livro)
+                       .filter_by(escola_id=_escola_id(), etiqueta_impressa=False).count())
+        categorias = [c for (c,) in db.query(Livro.categoria)
+                          .filter(Livro.escola_id == _escola_id(),
+                                  Livro.categoria.isnot(None), Livro.categoria != '')
+                          .distinct().order_by(Livro.categoria)]
+
+    tem_filtro = any([f_q, f_codigo, f_titulo, f_autor, f_categoria, f_ano, f_ano_ate,
+                      f_politica, f_espessura, f_situacao, f_etiqueta])
+    return render_template('livros/list.html', livros=livros, pendentes=pendentes,
+                           categorias=categorias, filtros=a, tem_filtro=tem_filtro)
 
 @bp.route('/novo', methods=['GET', 'POST'])
 def novo_livro():
