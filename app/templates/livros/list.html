@@ -54,10 +54,7 @@
       <td>{{ '✅ impressa' if livro.etiqueta_impressa else '🟠 pendente' }}</td>
       <td>
         <a href="{{ url_for('livros.editar_livro', codigo=livro.codigo) }}" class="btn btn-sm btn-warning">Editar</a>
-        <form method="post" action="{{ url_for('livros.deletar_livro', codigo=livro.codigo) }}"
-              style="display:inline" onsubmit="return confirm('Excluir o livro {{ livro.codigo }} — {{ livro.titulo }}?');">
-          <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
-        </form>
+        <a href="{{ url_for('livros.deletar_livro', codigo=livro.codigo) }}" class="btn btn-sm btn-danger">Excluir</a>
       </td>
     </tr>
     {% endfor %}

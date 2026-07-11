@@ -1,5 +1,6 @@
 from flask import Blueprint, request, render_template, redirect, url_for, flash, current_app, Response, jsonify
 from flask_login import current_user
+from werkzeug.security import check_password_hash
 from config.settings import SessionLocal
 from models.aluno import Aluno
 from models.livro import Livro
@@ -336,18 +337,32 @@ def editar_livro(codigo):
 
     return render_template('livros/form.html', livro=livro)
 
-@bp.route('/<string:codigo>/deletar', methods=['POST'])
+@bp.route('/<string:codigo>/deletar', methods=['GET', 'POST'])
 def deletar_livro(codigo):
-    """Deleta um livro pelo código"""
+    """Exclusão protegida: página de confirmação (dupla confirmação) + senha
+    de quem está excluindo. Evita exclusões acidentais (que deixam vão na
+    numeração, pois o código não é reaproveitado)."""
     with SessionLocal() as db:
         livro = db.query(Livro).filter_by(codigo=codigo, escola_id=_escola_id()).first()
-        if livro:
-            db.delete(livro)
-            db.commit()
-            flash('Livro deletado com sucesso!', 'success')
-        else:
-            flash('Livro não encontrado.', 'warning')
-    return redirect(url_for('livros.listar_livros'))
+    if not livro:
+        flash('Livro não encontrado.', 'warning')
+        return redirect(url_for('livros.listar_livros'))
+
+    if request.method == 'POST':
+        senha = request.form.get('senha', '')
+        if not senha or not check_password_hash(current_user.password_hash, senha):
+            flash('Senha incorreta — exclusão cancelada.', 'danger')
+            return redirect(url_for('livros.deletar_livro', codigo=codigo))
+        with SessionLocal() as db:
+            obj = db.query(Livro).filter_by(codigo=codigo, escola_id=_escola_id()).first()
+            if obj:
+                db.delete(obj)
+                db.commit()
+        flash(f'Livro {codigo} — "{livro.titulo}" excluído por {current_user.username}.', 'success')
+        return redirect(url_for('livros.listar_livros'))
+
+    # GET → página de confirmação
+    return render_template('livros/confirmar_exclusao.html', livro=livro)
 
 
 

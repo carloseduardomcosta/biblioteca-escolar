@@ -1,0 +1,32 @@
+<!-- templates/livros/confirmar_exclusao.html -->
+{% extends 'base.html' %}
+{% block title %}Excluir livro{% endblock %}
+{% block content %}
+<h1 class="text-danger">⚠️ Excluir livro</h1>
+
+<div class="alert alert-danger">
+  <p class="mb-2">Você está prestes a <strong>excluir permanentemente</strong>:</p>
+  <ul class="mb-2">
+    <li><strong>Código:</strong> {{ livro.codigo }}</li>
+    <li><strong>Título:</strong> {{ livro.titulo }}</li>
+    <li><strong>Autor:</strong> {{ livro.autor or '—' }}</li>
+  </ul>
+  <p class="mb-0">Isso é <strong>irreversível</strong> e deixa um <strong>vão na numeração</strong> —
+  o código {{ livro.codigo }} <em>não</em> será reaproveitado por novos livros.</p>
+</div>
+
+<form method="post" action="{{ url_for('livros.deletar_livro', codigo=livro.codigo) }}">
+  <div class="mb-3" style="max-width:340px">
+    <label for="senha" class="form-label">
+      Confirme com a sua senha (<strong>{{ current_user.username }}</strong>)
+    </label>
+    <input type="password" class="form-control" id="senha" name="senha"
+           required autofocus autocomplete="off" placeholder="Sua senha de acesso">
+  </div>
+  <button type="submit" class="btn btn-danger"
+          onclick="return confirm('Confirmar a exclusão DEFINITIVA do livro {{ livro.codigo }}?');">
+    🗑️ Excluir definitivamente
+  </button>
+  <a href="{{ url_for('livros.listar_livros') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}
