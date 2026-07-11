@@ -390,18 +390,19 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
     c = canvas.Canvas(buffer, pagesize=A4)
     PW, PH = A4
 
-    margin = 10 * mm
-    cols = 2
-    gut_x, gut_y = 6 * mm, 5 * mm
+    margin = 8 * mm
+    cols = 3                                    # 3 colunas na A4 (aproveita a folha)
+    gut_x, gut_y = 4 * mm, 4 * mm
     label_w = (PW - 2 * margin - (cols - 1) * gut_x) / cols
-    label_h = 20 * mm                        # altura máxima: 2 cm
+    label_h = 20 * mm                          # altura ~2 cm
     rows = int((PH - 2 * margin + gut_y) // (label_h + gut_y))
 
     # Geometria (a etiqueta dobra sobre a lombada):
-    #   barcode na aba da CAPA (esquerda); faixa central = LOMBADA cuja largura
-    #   é a espessura do livro (dois vincos); bolinha na aba da CONTRACAPA.
-    #   O tamanho total é fixo — só a distância barcode↔bolinha varia.
-    r_bol = 5 * mm                              # raio da bolinha (Ø1 cm, fixo)
+    #   barcode na aba da CAPA (esquerda); faixa central = LOMBADA (largura =
+    #   espessura do livro, com vinco); bolinha na aba da CONTRACAPA (direita).
+    #   A bolinha é ancorada à direita p/ não sobrar espaço na lateral.
+    r_bol = 5 * mm                             # raio da bolinha (Ø1 cm, fixo)
+    bc_min = 18 * mm                           # largura mínima do barcode (legibilidade)
 
     col = row = 0
     for livro in livros:
@@ -421,11 +422,15 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
 
         label_bottom = ly_top - label_h
 
-        # faixa central (LOMBADA): largura = espessura do livro, centrada
-        band_w = livro.espessura_mm * mm
-        band_w = max(4 * mm, min(band_w, label_w - 40 * mm))   # limites seguros
-        band_left = lx + (label_w - band_w) / 2
-        band_right = band_left + band_w
+        # bolinha ancorada à direita; lombada logo antes; barcode preenche o resto
+        bol_cx = lx + label_w - 3 * mm - r_bol
+        band_right = bol_cx - r_bol
+        # largura da lombada = espessura, limitada p/ manter o barcode legível
+        max_band = (band_right - (lx + 3 * mm)) - bc_min
+        band_w = max(4 * mm, min(livro.espessura_mm * mm, max_band))
+        band_left = band_right - band_w
+        bc_x0 = lx + 3 * mm
+        bc_w0 = band_left - bc_x0
 
         # borda externa (linha de corte)
         c.setDash()
@@ -433,7 +438,6 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
         c.setStrokeColorRGB(0.7, 0.7, 0.7)
         c.rect(lx, label_bottom, label_w, label_h)
         # vinco de dobra (tracejado) — só o do lado do barcode
-        # (o do lado da bolinha foi removido a pedido)
         c.setDash(2, 2)
         c.setStrokeColorRGB(0.6, 0.6, 0.6)
         c.line(band_left, ly_top, band_left, label_bottom)
@@ -441,8 +445,6 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
 
         # ── código de barras na aba da CAPA (esquerda) + número embaixo ──
         if img_path:
-            bc_x0 = lx + 3 * mm
-            bc_w0 = band_left - bc_x0                  # vai até o vinco esquerdo
             c.drawImage(img_path, bc_x0, label_bottom + 6 * mm,
                         width=bc_w0, height=11 * mm,
                         preserveAspectRatio=False, mask='auto')
@@ -463,10 +465,10 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
         c.drawCentredString(0, -sep + base, 'Escola Gallotti')
         c.restoreState()
 
-        # ── bolinha Ø1 cm na aba da CONTRACAPA (direita), junto ao vinco ──
+        # ── bolinha Ø1 cm na aba da CONTRACAPA (direita) ──
         r, g, b = _COR_POLITICA.get(livro.politica, (0.5, 0.5, 0.5))
         c.setFillColorRGB(r, g, b)
-        c.circle(band_right + r_bol, cy, r_bol, fill=1, stroke=0)
+        c.circle(bol_cx, cy, r_bol, fill=1, stroke=0)
 
         # avança na grade
         col += 1
