@@ -1,221 +1,278 @@
-{# templates/scan.html #}
+{# templates/emprestimos/scan.html — balcão único: empréstimo + devolução + renovação #}
 {% extends 'base.html' %}
 
-{% block title %}Empréstimos / Devoluções{% endblock %}
+{% block title %}Balcão — Empréstimos e Devoluções{% endblock %}
 
 {% block content %}
-  <h1 class="mb-4">Registro de Empréstimo e Devolução</h1>
+  <h1 class="mb-1">Balcão</h1>
+  <p class="text-muted">Bipe/informe o <strong>livro</strong> — o sistema detecta se é empréstimo ou devolução. Para emprestar, informe também a <strong>pessoa</strong>.</p>
 
-  <div class="btn-group mb-4" role="group">
-    <button id="btnModoEmprestimo" type="button" class="btn btn-primary">Empréstimo</button>
-    <button id="btnModoDevolucao"  type="button" class="btn btn-outline-primary">Devolução</button>
-  </div>
-
-  <form id="scanForm" class="row g-3 align-items-end">
-    <div class="col-md-6" id="campoAluno">
-      <label for="codigoAluno" class="form-label">Aluno</label>
-      <input type="text" id="codigoAluno" class="form-control"
-             placeholder="Parte do nome ou código" autocomplete="off" />
-    </div>
+  <div class="row g-3">
+    <!-- Pessoa -->
     <div class="col-md-6">
-      <label for="codigoLivro" class="form-label">Livro</label>
-      <input type="text" id="codigoLivro" class="form-control"
-             placeholder="Parte do título ou código" autocomplete="off" />
+      <label for="codigoPessoa" class="form-label fw-semibold">Pessoa</label>
+      <input type="text" id="codigoPessoa" class="form-control" autocomplete="off"
+             placeholder="Nome ou código (matrícula/cartão)">
+      <div id="pessoaInfo" class="p-3 border rounded mt-2 text-muted">— aguardando —</div>
     </div>
-    <div class="col-12">
-      <button type="button" id="btnRegistrar" class="btn btn-success w-100">
-        Registrar Empréstimo
-      </button>
-    </div>
-  </form>
-
-  <div class="row mt-4">
+    <!-- Livro -->
     <div class="col-md-6">
-      <h5>Resumo do Aluno</h5>
-      <div id="alunoInfo" class="p-3 border rounded text-muted">— aguardando código —</div>
-    </div>
-    <div class="col-md-6">
-      <h5>Resumo do Livro</h5>
-      <div id="livroInfo" class="p-3 border rounded text-muted">— aguardando código —</div>
+      <label for="codigoLivro" class="form-label fw-semibold">Livro</label>
+      <input type="text" id="codigoLivro" class="form-control" autocomplete="off"
+             placeholder="Título ou código do livro" autofocus>
+      <div id="livroInfo" class="p-3 border rounded mt-2 text-muted">— aguardando —</div>
     </div>
   </div>
 
-  <div id="result" class="mt-4"></div>
+  <!-- Painel de ação (muda conforme o estado do livro) -->
+  <div id="acao" class="mt-4"></div>
 
-  <!-- Modal para data prevista -->
-  <div class="modal fade" id="emprestimoModal" tabindex="-1" aria-labelledby="emprestimoModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="emprestimoModalLabel">Data Prevista de Devolução</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <label for="dataPrevistaInput" class="form-label">Escolha a data:</label>
-          <input type="date" id="dataPrevistaInput" class="form-control" />
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="confirmarEmprestimo">Confirmar</button>
-        </div>
-      </div>
-    </div>
+  <div class="mt-3">
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLimpar">
+      <i class="fa-solid fa-eraser me-1"></i>Limpar
+    </button>
   </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-$(function(){
-  // URLs do backend
-  const urlAutoAlunos   = "{{ url_for('emprestimos.autocomplete_alunos') }}";
-  const urlAutoLivros   = "{{ url_for('emprestimos.autocomplete_livros') }}";
-  const urlCriar        = "{{ url_for('emprestimos.criar_emprestimo') }}";
-  const urlDevolver     = "{{ url_for('emprestimos.registrar_devolucao') }}";
-  const urlObterAluno   = "{{ url_for('emprestimos.obter_aluno_json', codigo='') }}";
-  const urlObterLivro   = "{{ url_for('emprestimos.obter_livro_json', codigo='') }}";
+$(function () {
+  const urlAutoPessoas = "{{ url_for('emprestimos.autocomplete_alunos') }}";
+  const urlAutoLivros  = "{{ url_for('emprestimos.autocomplete_livros') }}";
+  const urlObterPessoa = "{{ url_for('emprestimos.obter_aluno_json', codigo='') }}";
+  const urlObterLivro  = "{{ url_for('emprestimos.obter_livro_json', codigo='') }}";
+  const urlCriar       = "{{ url_for('emprestimos.criar_emprestimo') }}";
+  const urlDevolver    = "{{ url_for('emprestimos.registrar_devolucao') }}";
+  const urlRenovar     = "{{ url_for('emprestimos.renovar_emprestimo') }}";
 
-  // Modo padrão
-  let modo = 'emprestimo';
-  const $campoA = $('#campoAluno'),
-        $btnE   = $('#btnModoEmprestimo'),
-        $btnD   = $('#btnModoDevolucao'),
-        $btnR   = $('#btnRegistrar'),
-        $inpA   = $('#codigoAluno'),
-        $inpL   = $('#codigoLivro'),
-        $infoA  = $('#alunoInfo'),
-        $infoL  = $('#livroInfo'),
-        $res    = $('#result');
+  const $pInp = $('#codigoPessoa'), $lInp = $('#codigoLivro');
+  const $pInfo = $('#pessoaInfo'), $lInfo = $('#livroInfo'), $acao = $('#acao');
 
-  // Modal Bootstrap e variáveis pendentes
-  const emprestimoModal = new bootstrap.Modal(document.getElementById('emprestimoModal'));
-  let pendingAluno, pendingLivro;
+  const state = { pessoa: null, livro: null };
 
-  // Listener do botão Confirmar no modal
-  $('#confirmarEmprestimo').click(async () => {
-    const dataPrev = $('#dataPrevistaInput').val();
-    emprestimoModal.hide();
-    $res.html('<div class="alert alert-info">Processando…</div>');
+  const prazoDias = t => (t === 'professor' ? 30 : 7);
+  const brDate = iso => { if (!iso) return '—'; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
+  const hojeMais = dias => { const d = new Date(); d.setDate(d.getDate() + dias); return d.toISOString().slice(0,10); };
 
-    const body = {
-      codigo_aluno: pendingAluno,
-      codigo_livro: pendingLivro,
-      data_prevista: dataPrev
-    };
-    const r = await fetch(urlCriar, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    });
+  async function getJSON(url) {
+    const r = await fetch(url);
+    return { ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) };
+  }
+  async function postJSON(url, body) {
+    const r = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    return { ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) };
+  }
 
-    if (r.status === 201) {
-      showToast('success','Empréstimo registrado');
+  // ── Pessoa ──
+  function htmlAtivos(data) {
+    if (!data.ativos.length) return '<div class="small text-muted mt-2">Sem livros emprestados.</div>';
+    const linhas = data.ativos.map(x => `
+      <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1 mt-1">
+        <span class="small">
+          <strong>${x.codigo}</strong> — ${x.titulo}
+          ${x.atrasado ? '<span class="badge bg-danger ms-1">atrasado</span>' : ''}
+          <span class="text-muted">· vence ${brDate(x.data_prevista)}</span>
+        </span>
+        <span class="text-nowrap ms-2">
+          <button type="button" class="btn btn-sm btn-warning btn-baixa" data-codigo="${x.codigo}">
+            <i class="fa-solid fa-rotate-left me-1"></i>Devolver
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-primary btn-renova" data-codigo="${x.codigo}">
+            <i class="fa-solid fa-calendar-plus"></i>
+          </button>
+        </span>
+      </div>`).join('');
+    const todos = data.ativos.length > 1
+      ? `<button type="button" class="btn btn-sm btn-outline-warning mt-2" id="btnBaixaTodos">
+           <i class="fa-solid fa-rotate-left me-1"></i>Devolver todos (${data.ativos.length})
+         </button>` : '';
+    return `<div class="mt-2 small fw-semibold">Livros com esta pessoa:</div>${linhas}${todos}`;
+  }
+
+  async function carregarPessoa(codigo) {
+    if (!codigo) { state.pessoa = null; $pInfo.html('— aguardando —').addClass('text-muted'); return renderAcao(); }
+    $pInfo.text('Carregando…');
+    const { ok, data } = await getJSON(urlObterPessoa + encodeURIComponent(codigo));
+    if (!ok) { state.pessoa = null; $pInfo.removeClass('text-muted').html('<span class="text-danger">Pessoa não encontrada</span>'); return renderAcao(); }
+    state.pessoa = data;
+    const tipoBadge = data.tipo === 'professor'
+      ? '<span class="badge" style="background:#4a3aa7">Professor</span>'
+      : `<span class="badge bg-secondary">Aluno${data.turma ? ' · ' + data.turma : ''}</span>`;
+    const alertaAtraso = data.atrasados.length
+      ? `<div class="alert alert-warning py-1 px-2 mt-2 mb-0 small"><i class="fa-solid fa-triangle-exclamation me-1"></i>${data.atrasados.length} livro(s) em atraso.</div>`
+      : '';
+    $pInfo.removeClass('text-muted').html(`
+      <div><strong>${data.codigo} — ${data.nome}</strong> ${tipoBadge}</div>
+      ${htmlAtivos(data)}${alertaAtraso}`);
+    // ações por livro direto do painel da pessoa
+    $pInfo.find('.btn-baixa').on('click', function () { devolverLivro($(this).data('codigo')); });
+    $pInfo.find('.btn-renova').on('click', function () { renovarLivro($(this).data('codigo')); });
+    $pInfo.find('#btnBaixaTodos').on('click', devolverTodos);
+    renderAcao();
+  }
+
+  // ── Baixa/renovação a partir da PESSOA (não só pelo livro) ──
+  async function atualizarPaineis(codigoLivro) {
+    if (state.pessoa) await carregarPessoa(state.pessoa.codigo);
+    if (state.livro && (!codigoLivro || state.livro.codigo === codigoLivro)) await carregarLivro(state.livro.codigo);
+  }
+  async function devolverLivro(codigoLivro) {
+    const { ok, data } = await postJSON(urlDevolver, { codigo_livro: codigoLivro });
+    if (ok) showToast('success', 'Devolução registrada: ' + codigoLivro);
+    else    showToast('error', data.error || 'Falha ao devolver');
+    await atualizarPaineis(codigoLivro);
+  }
+  async function renovarLivro(codigoLivro) {
+    const { ok, data } = await postJSON(urlRenovar, { codigo_livro: codigoLivro });
+    if (ok) showToast('success', `Renovado (${codigoLivro}) até ` + brDate(data.nova_data));
+    else    showToast('error', data.error || 'Falha ao renovar');
+    await atualizarPaineis(codigoLivro);
+  }
+  async function devolverTodos() {
+    if (!state.pessoa || !state.pessoa.ativos.length) return;
+    const codigos = state.pessoa.ativos.map(x => x.codigo);
+    if (!confirm(`Dar baixa em ${codigos.length} livro(s) de ${state.pessoa.nome}?`)) return;
+    let n = 0;
+    for (const cod of codigos) {
+      const { ok } = await postJSON(urlDevolver, { codigo_livro: cod });
+      if (ok) n++;
+    }
+    showToast('success', `${n} livro(s) devolvido(s)`);
+    await atualizarPaineis(null);
+  }
+
+  // ── Livro ──
+  async function carregarLivro(codigo) {
+    if (!codigo) { state.livro = null; $lInfo.html('— aguardando —').addClass('text-muted'); return renderAcao(); }
+    $lInfo.text('Carregando…');
+    const { ok, data } = await getJSON(urlObterLivro + encodeURIComponent(codigo));
+    if (!ok) { state.livro = null; $lInfo.removeClass('text-muted').html('<span class="text-danger">Livro não encontrado</span>'); return renderAcao(); }
+    state.livro = data;
+    const estado = data.disponivel
+      ? '<span class="badge bg-success">Disponível</span>'
+      : '<span class="badge bg-warning text-dark">Emprestado</span>';
+    let extra = '';
+    if (!data.disponivel && data.emprestimo) {
+      const e = data.emprestimo;
+      const atraso = e.atrasado ? ` <span class="text-danger fw-semibold">(atrasado ${e.dias_atraso} dia(s))</span>` : '';
+      extra = `<div class="mt-1 small">Com <strong>${e.aluno_nome}</strong> · vence ${brDate(e.data_prevista)}${atraso}</div>`;
+    }
+    $lInfo.removeClass('text-muted').html(`
+      <div><strong>${data.codigo} — ${data.titulo}</strong> ${data.bolinha}</div>
+      <div class="mt-1">${estado} <span class="text-muted small">${data.politica_label}</span></div>${extra}`);
+    renderAcao();
+  }
+
+  // ── Painel de ação (decide pelo ESTADO do livro) ──
+  function renderAcao() {
+    const L = state.livro, P = state.pessoa;
+    if (!L) { $acao.html('<div class="alert alert-light border">Bipe ou selecione um livro para começar.</div>'); return; }
+
+    if (L.disponivel) {
+      // EMPRÉSTIMO
+      if (!P) { $acao.html('<div class="alert alert-info">Livro disponível. Informe a <strong>pessoa</strong> para registrar o empréstimo.</div>'); return; }
+      // política por papel
+      if (P.tipo !== 'professor' && L.politica !== 'emprestavel') {
+        $acao.html(`<div class="alert alert-danger">${L.bolinha} Este livro é "<strong>${L.politica_label}</strong>" e só pode ser emprestado a um <strong>professor</strong>.</div>`);
+        return;
+      }
+      const aviso = (P.atrasados && P.atrasados.length)
+        ? `<div class="alert alert-warning py-2"><i class="fa-solid fa-triangle-exclamation me-1"></i>Esta pessoa tem ${P.atrasados.length} livro(s) em atraso — o empréstimo é permitido mesmo assim.</div>` : '';
+      $acao.html(`
+        ${aviso}
+        <div class="card card-body">
+          <div class="row g-2 align-items-end">
+            <div class="col-sm-5">
+              <label class="form-label mb-1">Devolver até</label>
+              <input type="date" id="dataPrevista" class="form-control" value="${hojeMais(prazoDias(P.tipo))}">
+              <div class="form-text">Padrão: ${prazoDias(P.tipo)} dias (${P.tipo === 'professor' ? 'professor' : 'aluno'}).</div>
+            </div>
+            <div class="col-sm-7">
+              <button type="button" id="btnEmprestar" class="btn btn-success w-100">
+                <i class="fa-solid fa-hand-holding-hand me-2"></i>Registrar empréstimo
+              </button>
+            </div>
+          </div>
+        </div>`);
+      $('#btnEmprestar').on('click', emprestar);
+    } else {
+      // DEVOLUÇÃO / RENOVAÇÃO
+      $acao.html(`
+        <div class="card card-body">
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" id="btnDevolver" class="btn btn-warning">
+              <i class="fa-solid fa-rotate-left me-2"></i>Registrar devolução
+            </button>
+            <button type="button" id="btnRenovar" class="btn btn-outline-primary">
+              <i class="fa-solid fa-calendar-plus me-2"></i>Renovar prazo
+            </button>
+          </div>
+        </div>`);
+      $('#btnDevolver').on('click', devolver);
+      $('#btnRenovar').on('click', renovar);
+    }
+  }
+
+  // ── Ações ──
+  async function emprestar() {
+    const body = { codigo_aluno: state.pessoa.codigo, codigo_livro: state.livro.codigo };
+    const dt = $('#dataPrevista').val();
+    if (dt) body.data_prevista = dt;
+    const { ok, data } = await postJSON(urlCriar, body);
+    if (ok) {
+      showToast('success', 'Empréstimo registrado' + (data.data_prevista ? ' (vence ' + brDate(data.data_prevista) + ')' : ''));
+      if (data.warning) showToast('warning', data.warning);
       limpar();
     } else {
-      const e = await r.json();
-      showToast('error', e.error || 'Erro');
-      $res.empty();
+      showToast('error', data.error || 'Falha ao emprestar');
+      if (data.code === 'unavailable') carregarLivro(state.livro.codigo); // atualiza estado
     }
-  });
-
-  // Função para alternar modo
-  function setModo(m){
-    modo = m;
-    if (m==='emprestimo') {
-      $campoA.show();
-      $btnE.addClass('btn-primary').removeClass('btn-outline-primary');
-      $btnD.addClass('btn-outline-primary').removeClass('btn-primary');
-      $btnR.text('Registrar Empréstimo').removeClass('btn-warning').addClass('btn-success');
-    } else {
-      $campoA.hide();
-      $btnD.addClass('btn-primary').removeClass('btn-outline-primary');
-      $btnE.addClass('btn-outline-primary').removeClass('btn-primary');
-      $btnR.text('Registrar Devolução').removeClass('btn-success').addClass('btn-warning');
-    }
-    limpar();
+  }
+  async function devolver() {
+    const { ok, data } = await postJSON(urlDevolver, { codigo_livro: state.livro.codigo });
+    if (ok) { showToast('success', 'Devolução registrada'); limpar(); }
+    else    { showToast('error', data.error || 'Falha ao devolver'); }
+  }
+  async function renovar() {
+    const { ok, data } = await postJSON(urlRenovar, { codigo_livro: state.livro.codigo });
+    if (ok) { showToast('success', 'Renovado até ' + brDate(data.nova_data)); carregarLivro(state.livro.codigo); }
+    else    { showToast('error', data.error || 'Falha ao renovar'); }
   }
 
-  $btnE.click(()=> setModo('emprestimo'));  $btnD.click(()=> setModo('devolucao'));
-  setModo('emprestimo');
-
-  // Autocomplete Alunos
-  $inpA.autocomplete({
-    source(req, resp){ $.getJSON(urlAutoAlunos,{ term:req.term }, data=> resp(data.map(i=>({ label:`${i.codigo} — ${i.nome}`, value:i.codigo }))) ); },
-    minLength:1,
-    select(_,ui){ $inpA.val(ui.item.value); buscarAluno(ui.item.value); return false; }
-  });
-
-  // Autocomplete Livros
-  $inpL.autocomplete({
-    source(req, resp){ $.getJSON(urlAutoLivros,{ term:req.term }, data=> resp(data.map(i=>({ label:`${i.codigo} — ${i.titulo}`, value:i.codigo }))) ); },
-    minLength:1,
-    select(_,ui){ $inpL.val(ui.item.value); buscarLivro(ui.item.value); return false; }
-  });
-
-  // Funções blur para buscar via API
-  $inpA.blur(()=>{ const v=$inpA.val().split('—')[0].trim(); v&&buscarAluno(v); });
-  $inpL.blur(()=>{ const v=$inpL.val().split('—')[0].trim(); v&&buscarLivro(v); });
-
-  // buscas
-  async function buscarAluno(c){
-    $infoA.text('Carregando…');
-    const r = await fetch(`${urlObterAluno}${c}`);
-    if (!r.ok) return $infoA.html('<div class="text-danger">Aluno não encontrado</div>');
-    const a = await r.json();
-    const badges = a.ativos.length
-      ? a.ativos.map(x=>`<span class="badge bg-info text-dark me-1">${x.codigo} — ${x.titulo}</span>`).join('')
-      : '<span class="text-muted">nenhum ativo</span>';
-    $infoA.html(`
-      <p><strong>${a.codigo} — ${a.nome}</strong> — Turma ${a.turma}</p>
-      <p>Ativos: ${badges}</p>
-    `);
+  function limpar() {
+    state.pessoa = null; state.livro = null;
+    $pInp.val(''); $lInp.val('');
+    $pInfo.addClass('text-muted').html('— aguardando —');
+    $lInfo.addClass('text-muted').html('— aguardando —');
+    renderAcao();
+    $lInp.focus();
   }
 
-  async function buscarLivro(c){
-    $infoL.text('Carregando…');
-    const r = await fetch(`${urlObterLivro}${c}`);
-    if (!r.ok) return $infoL.html('<div class="text-danger">Livro não encontrado</div>');
-    const l = await r.json();
-    const cls = l.situacao==='disponível' ? 'bg-success' : 'bg-warning';
-    const extra = l.emprestado_por
-      ? `<p>Emprestado para: <strong>${l.emprestado_por.codigo} — ${l.emprestado_por.nome}</strong></p>`
-      : '';
-    $infoL.html(`
-      <p><strong>${l.codigo} — ${l.titulo}</strong> — ${l.autor}</p>
-      <p>Status: <span class="badge ${cls}">${l.situacao}</span></p>
-      ${extra}
-    `);
-  }
-
-  // Handler botão principal
-  $btnR.click(async ()=>{
-    const a = $inpA.val().trim(), l = $inpL.val().trim();
-    if (modo==='emprestimo' && !a) { showToast('warning','Selecione um aluno'); return; }
-    if (!l)                   { showToast('warning','Selecione um livro'); return; }
-    $res.html('<div class="alert alert-info">Processando…</div>');
-
-    if (modo==='emprestimo') {
-      // abre modal para data
-      pendingAluno = a; pendingLivro = l;
-      $('#dataPrevistaInput').val(new Date().toISOString().split('T')[0]);
-      emprestimoModal.show();
-    } else {
-      // devolução
-      const r = await fetch(urlDevolver,{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({codigo_livro:l})
-      });
-      if (r.ok) { showToast('success','Devolução registrada'); limpar(); }
-      else      { const e=await r.json(); showToast('error',e.error); $res.empty(); }
-    }
+  // ── Autocomplete + digitação/enter/blur ──
+  $pInp.autocomplete({
+    minLength: 1,
+    source: (req, resp) => $.getJSON(urlAutoPessoas, { term: req.term }, d =>
+      resp(d.map(i => ({ label: `${i.codigo} — ${i.nome}`, value: i.codigo })))),
+    select: (_, ui) => { $pInp.val(ui.item.value); carregarPessoa(ui.item.value); return false; }
   });
+  $lInp.autocomplete({
+    minLength: 1,
+    source: (req, resp) => $.getJSON(urlAutoLivros, { term: req.term }, d =>
+      resp(d.map(i => ({ label: `${i.codigo} — ${i.titulo}`, value: i.codigo })))),
+    select: (_, ui) => { $lInp.val(ui.item.value); carregarLivro(ui.item.value); return false; }
+  });
+  const soCodigo = v => (v || '').split('—')[0].trim();
+  $pInp.on('blur', () => { const v = soCodigo($pInp.val()); if (v) carregarPessoa(v); });
+  $lInp.on('blur', () => { const v = soCodigo($lInp.val()); if (v) carregarLivro(v); });
+  $pInp.on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); carregarPessoa(soCodigo($pInp.val())); }});
+  $lInp.on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); carregarLivro(soCodigo($lInp.val())); }});
+  $('#btnLimpar').on('click', limpar);
 
-  // reset
-  function limpar(){
-    $inpA.val(''); $inpL.val('');
-    $infoA.html('— aguardando código —');
-    $infoL.html('— aguardando código —');
-    $res.empty(); $inpA.focus();
-  }
+  // pré-seleção da pessoa via ?pessoa=<codigo> (vindo da lista de Pessoas)
+  const pres = new URLSearchParams(window.location.search).get('pessoa');
+  if (pres) { $pInp.val(pres); carregarPessoa(pres); } else { $lInp.focus(); }
+
+  renderAcao();
 });
 </script>
 {% endblock %}

@@ -80,23 +80,45 @@ Ideal para organizar muitos livros do zero: **pega o livro → dá entrada → i
 
 ---
 
-## 👨‍🎓 3. Cadastrar alunos
+## 👥 3. Cadastrar pessoas (alunos e professores)
 
-O código do aluno é a **matrícula** (o mesmo número do **cartão da merenda**) — é o que o
-leitor vai bipar para identificar o aluno.
+O menu **Pessoas** é a central de cadastro. O código é a **matrícula** (o mesmo número do
+**cartão da merenda**) — é o que o leitor bipa para identificar a pessoa.
 
-- **Um a um:** Menu **Alunos → Novo Aluno**.
-- **Em massa:** **Alunos → Importar** → baixe o modelo (Excel), preencha `codigo` (matrícula),
-  `nome`, `turma` e envie.
+- **Uma a uma:** **Pessoas → Nova pessoa**. Escolha o **tipo**: **Aluno** ou **Professor**
+  (a Turma só aparece para aluno).
+- **Em massa:** **Pessoas → Importar** → baixe o modelo (Excel), preencha `codigo` (matrícula),
+  `nome`, `turma` e, opcionalmente, `tipo` (`aluno`/`professor`; em branco vira aluno).
+- Use os filtros **Alunos / Professores / Todos** no topo da lista.
+
+> **Por que separar professor?** É a regra de quem pode levar cada livro:
+> **aluno só leva 🟢**; **professor leva qualquer livro** (🟢🟡🔴).
 
 ---
 
-## 🔄 4. Emprestar e devolver
+## 🔄 4. Balcão — emprestar, devolver e renovar
 
-- **Emprestar:** Menu **Empréstimos → Scan**. Bipe o **cartão do aluno** e depois o
-  **código de barras do livro**. O sistema registra o empréstimo.
-  - Livros 🟡 e 🔴 **não podem ser emprestados** — o sistema avisa e bloqueia.
-- **Devolver:** bipe o código de barras do livro na tela de devolução.
+Tudo num lugar só: **Balcão** (no menu, ou **Empréstimos → Balcão**). O sistema **descobre
+sozinho** se é empréstimo ou devolução pelo estado do livro.
+
+**Emprestar**
+1. Bipe/digite o **livro**. Se estiver **disponível**, o balcão pede a **pessoa**.
+2. Bipe/digite a **pessoa**. Confira o prazo (**7 dias** para aluno, **30** para professor —
+   dá pra mudar a data) e clique em **Registrar empréstimo**.
+   - Se um **aluno** tentar um livro 🟡/🔴, o sistema **avisa e bloqueia** (só professor leva).
+   - Se a pessoa tiver livro **em atraso**, aparece um aviso — mas o empréstimo é permitido.
+
+**Devolver** — de três jeitos:
+- **Pelo livro:** bipe o livro no balcão; estando emprestado, clique em **Registrar devolução**.
+- **Pela pessoa:** busque a pessoa (no balcão ou em **Pessoas**) e clique em **Devolver** no
+  livro que ela tem (ou **Devolver todos**).
+- **Pela lista:** em **Empréstimos**, use o filtro **Ativos/Atrasados** e clique em **Devolver**
+  na linha.
+
+**Renovar** — para estender o prazo sem devolver: botão **Renovar** (no balcão, na lista de
+empréstimos ou no painel da pessoa).
+
+> O menu **Empréstimos** mostra um **badge vermelho** com a quantidade de atrasados.
 
 ---
 
@@ -105,7 +127,7 @@ leitor vai bipar para identificar o aluno.
 Antes de encarar centenas de livros, **cataloge só uns 10** e valide:
 
 1. Dê entrada nos 10, imprima o lote, recorte, dobre e cole.
-2. Em **Empréstimos → Scan**, **bipe o código de barras** de um livro etiquetado → deve puxar o livro certo.
+2. No **Balcão**, **bipe o código de barras** de um livro etiquetado → deve puxar o livro certo.
 3. Confira se a **bolinha e o número** estão legíveis a um braço de distância.
 4. Se o leitor não bipar bem no papel comum, ou o tamanho não agradar, é rápido ajustar.
 

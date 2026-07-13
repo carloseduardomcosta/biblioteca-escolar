@@ -1,41 +1,102 @@
 {% extends 'base.html' %}
 
-{% block title %}Login{% endblock %}
+{% block title %}Entrar{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-4">
-    <h2 class="mb-4">Login - Biblioteca do Teófilo</h2>
+<div class="login-wrapper">
+  <div class="login-card card border-0 shadow-lg">
+    <div class="card-body p-4 p-md-5">
 
-    <!-- Formulário de Login -->
-    <form method="post" action="{{ url_for('auth.login') }}">
-      <div class="mb-3">
-        <label for="username" class="form-label">Usuário</label>
-        <input
-          type="text"
-          name="username"
-          id="username"
-          class="form-control"
-          required
-          autofocus
-        >
+      <!-- Marca / cabeçalho com herói animado (biblioteca + livros + tecnologia) -->
+      <div class="text-center mb-4">
+        <div class="login-hero" aria-hidden="true" title="Biblioteca conectada">
+          <span class="ba-ring"></span>
+          <span class="ba-ring ba-ring--2"></span>
+          <span class="login-badge"><i class="fa-solid fa-book-open-reader"></i></span>
+          <span class="login-orbit">
+            <i class="fa-solid fa-microchip   ba-sat ba-sat--1"></i>
+            <i class="fa-solid fa-wifi        ba-sat ba-sat--2"></i>
+            <i class="fa-solid fa-laptop-code ba-sat ba-sat--3"></i>
+            <i class="fa-solid fa-bookmark    ba-sat ba-sat--4"></i>
+          </span>
+        </div>
+        <h1 class="h4 fw-bold mt-2 mb-1">Biblioteca do Teófilo</h1>
+        <p class="text-muted small mb-0">Entre com suas credenciais para continuar</p>
       </div>
-      <div class="mb-3">
-        <label for="password" class="form-label">Senha</label>
-        <input
-          type="password"
-          name="password"
-          id="password"
-          class="form-control"
-          required
-        >
-      </div>
-      <button type="submit" class="btn btn-primary w-100">Entrar</button>
-    </form>
-    <div class="mt-3 text-center">
-      <a href="{{ url_for('static', filename='guia.html') }}" target="_blank">📖 Guia de uso</a>
+
+      <!-- Formulário de Login -->
+      <form method="post" action="{{ url_for('auth.login') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label for="username" class="form-label fw-semibold small">Usuário</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white text-muted">
+              <i class="fa-solid fa-user"></i>
+            </span>
+            <input
+              type="text"
+              name="username"
+              id="username"
+              class="form-control border-start-0 ps-0"
+              placeholder="Seu usuário"
+              autocomplete="username"
+              required
+              autofocus
+            >
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label for="password" class="form-label fw-semibold small">Senha</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white text-muted">
+              <i class="fa-solid fa-lock"></i>
+            </span>
+            <input
+              type="password"
+              name="password"
+              id="password"
+              class="form-control border-start-0 border-end-0 ps-0"
+              placeholder="Sua senha"
+              autocomplete="current-password"
+              required
+            >
+            <button
+              type="button"
+              class="input-group-text bg-white text-muted border-start-0"
+              id="togglePassword"
+              aria-label="Mostrar ou ocultar a senha"
+              title="Mostrar/ocultar senha"
+            >
+              <i class="fa-solid fa-eye" id="togglePasswordIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg w-100 fw-semibold">
+          <i class="fa-solid fa-right-to-bracket me-2"></i>Entrar
+        </button>
+      </form>
     </div>
-    <!-- Cadastro de usuários é feito somente pela área administrativa (após login). -->
   </div>
+
+  <p class="text-center text-muted small mt-4 mb-0">
+    <i class="fa-solid fa-shield-halved me-1"></i>Acesso restrito à equipe da biblioteca
+  </p>
 </div>
+
+<script>
+  (function () {
+    const input  = document.getElementById('password');
+    const toggle = document.getElementById('togglePassword');
+    const icon   = document.getElementById('togglePasswordIcon');
+    if (!input || !toggle) return;
+    toggle.addEventListener('click', function () {
+      const hidden = input.type === 'password';
+      input.type = hidden ? 'text' : 'password';
+      icon.classList.toggle('fa-eye', !hidden);
+      icon.classList.toggle('fa-eye-slash', hidden);
+    });
+  })();
+</script>
 {% endblock %}

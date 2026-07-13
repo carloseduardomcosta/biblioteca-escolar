@@ -10,6 +10,7 @@
       {% if action=='criar' %}Novo Usuário{% else %}Editar Usuário{% endif %}
     </h1>
     <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="mb-3">
         <label class="form-label">Username</label>
         <input

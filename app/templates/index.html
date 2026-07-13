@@ -3,65 +3,114 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h1 class="mb-4">Dashboard</h1>
+<div class="dash">
 
-  
-
-  <!-- 2. Cards principais -->
-  <div class="row mb-4">
-    {% for label, valor in [
-         ('Total de Alunos', total_alunos),
-         ('Total de Livros', total_livros),
-         ('Livros Disponíveis', disponiveis),
-         ('Livros Emprestados', emprestados),
-         ('Empréstimos Ativos', ativos),
-         ('Empréstimos Atrasados', atrasados)
-       ] %}
-    <div class="col-lg-4 col-md-6 mb-3">
-      <div class="card shadow-sm">
-        <div class="card-body text-center">
-          <h5 class="card-title">{{ label }}</h5>
-          <p class="card-text display-4">{{ valor }}</p>
-        </div>
-      </div>
+  <!-- Cabeçalho -->
+  <div class="dash-head">
+    <div>
+      <h1 class="dash-title">Painel da Biblioteca</h1>
+      <p class="dash-sub">Visão geral do acervo e da circulação</p>
     </div>
-    {% endfor %}
+    <a href="{{ url_for('emprestimos.exibir_scan') }}" class="btn btn-gradient rounded-pill px-4">
+      <i class="fa-solid fa-plus-circle me-2"></i>Novo empréstimo
+    </a>
   </div>
 
-  <!-- 3. Empréstimos de Hoje e Mensal -->
-  <div class="row mb-4">
-    <div class="col-md-6 mb-3">
-      <div class="card shadow-sm">
-        <div class="card-body text-center">
-          <h5 class="card-title">Empréstimos Hoje</h5>
-          <p class="card-text display-4">{{ emprestimos_hoje }}</p>
-        </div>
+  <!-- KPIs (cada card é um atalho para a lista correspondente) -->
+  <div class="kpi-grid">
+    <a class="kpi kpi--info" href="{{ url_for('alunos.listar_alunos_html', tipo='aluno') }}">
+      <span class="kpi__icon"><i class="fa-solid fa-user-graduate"></i></span>
+      <span class="kpi__label">Alunos</span>
+      <span class="kpi__value">{{ total_alunos }}</span>
+      <span class="kpi__hint">cadastrados</span>
+    </a>
+
+    <a class="kpi kpi--violet" href="{{ url_for('livros.listar_livros') }}">
+      <span class="kpi__icon"><i class="fa-solid fa-book"></i></span>
+      <span class="kpi__label">Livros</span>
+      <span class="kpi__value">{{ total_livros }}</span>
+      <span class="kpi__hint">no acervo</span>
+    </a>
+
+    <a class="kpi kpi--good" href="{{ url_for('livros.listar_livros', situacao='disponível') }}">
+      <span class="kpi__icon"><i class="fa-solid fa-circle-check"></i></span>
+      <span class="kpi__label">Disponíveis</span>
+      <span class="kpi__value">{{ disponiveis }}</span>
+      <span class="kpi__hint">
+        {{ ((disponiveis / total_livros) * 100) | round(0, 'floor') | int if total_livros else 0 }}% do acervo
+      </span>
+    </a>
+
+    <a class="kpi kpi--aqua" href="{{ url_for('livros.listar_livros', situacao='emprestado') }}">
+      <span class="kpi__icon"><i class="fa-solid fa-book-reader"></i></span>
+      <span class="kpi__label">Emprestados</span>
+      <span class="kpi__value">{{ emprestados }}</span>
+      <span class="kpi__hint">fora da estante</span>
+    </a>
+
+    <a class="kpi kpi--info" href="{{ url_for('emprestimos.listar_emprestimos_html', status='ativos') }}">
+      <span class="kpi__icon"><i class="fa-solid fa-right-left"></i></span>
+      <span class="kpi__label">Ativos</span>
+      <span class="kpi__value">{{ ativos }}</span>
+      <span class="kpi__hint">empréstimos abertos</span>
+    </a>
+
+    <a class="kpi {{ 'kpi--critical' if atrasados else 'kpi--muted' }}"
+       href="{{ url_for('emprestimos.listar_emprestimos_html', status='atrasados') }}">
+      <span class="kpi__icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+      <span class="kpi__label">Atrasados</span>
+      <span class="kpi__value">{{ atrasados }}</span>
+      <span class="kpi__hint">
+        {% if ativos %}de {{ ativos }} ativos{% else %}nenhum pendente{% endif %}
+      </span>
+    </a>
+  </div>
+
+  <!-- Gráfico mensal + destaque de hoje -->
+  <div class="dash-row">
+    <div class="dash-panel dash-panel--wide">
+      <div class="dash-panel__head">
+        <h2 class="dash-panel__title">Empréstimos por mês</h2>
+        <span class="dash-panel__badge">{{ ano_atual }}</span>
+      </div>
+      <div class="chart-box chart-box--lg">
+        <canvas id="emprestimosMesChart"></canvas>
       </div>
     </div>
-    <div class="col-md-6 mb-3">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title">Empréstimos por Mês – {{ ano_atual }}</h5>
-          <canvas id="emprestimosMesChart"></canvas>
-        </div>
+
+    <div class="dash-panel dash-panel--today">
+      <div class="dash-panel__head">
+        <h2 class="dash-panel__title">Hoje</h2>
+      </div>
+      <div class="today">
+        <span class="today__value">{{ emprestimos_hoje }}</span>
+        <span class="today__label">
+          empréstimo{{ '' if emprestimos_hoje == 1 else 's' }} registrado{{ '' if emprestimos_hoje == 1 else 's' }}
+        </span>
       </div>
     </div>
   </div>
 
-  <!-- 4. Gráficos Top Alunos & Top Livros -->
-  <div class="row">
-    <div class="col-md-6 mb-4">
-      <div class="card shadow-sm">
-        <div class="card-header">Top 5 Alunos</div>
-        <div class="card-body"><canvas id="topAlunosChart"></canvas></div>
+  <!-- Rankings -->
+  <div class="dash-row">
+    <div class="dash-panel">
+      <div class="dash-panel__head">
+        <h2 class="dash-panel__title"><i class="fa-solid fa-medal me-2 text-muted"></i>Top 5 alunos</h2>
       </div>
+      <div class="chart-box">
+        <canvas id="topAlunosChart"></canvas>
+      </div>
+      <p class="dash-empty" id="alunosEmpty" hidden>Ainda sem empréstimos registrados.</p>
     </div>
-    <div class="col-md-6 mb-4">
-      <div class="card shadow-sm">
-        <div class="card-header">Top 5 Livros</div>
-        <div class="card-body"><canvas id="topLivrosChart"></canvas></div>
+
+    <div class="dash-panel">
+      <div class="dash-panel__head">
+        <h2 class="dash-panel__title"><i class="fa-solid fa-fire me-2 text-muted"></i>Top 5 livros</h2>
       </div>
+      <div class="chart-box">
+        <canvas id="topLivrosChart"></canvas>
+      </div>
+      <p class="dash-empty" id="livrosEmpty" hidden>Ainda sem empréstimos registrados.</p>
     </div>
   </div>
 </div>
@@ -78,23 +127,77 @@ document.addEventListener('DOMContentLoaded', function () {
   const mesesLabels     = JSON.parse('{{ emprestimos_mes_labels | tojson | safe }}');
   const mesesData       = JSON.parse('{{ emprestimos_mes_data  | tojson | safe }}');
 
-  new Chart(document.getElementById('topAlunosChart'), {
-    type: 'bar',
-    data: { labels: topAlunosLabels, datasets: [{ label:'Empréstimos', data:topAlunosData, borderWidth:1 }]},
-    options:{responsive:true, scales:{y:{beginAtZero:true}}}
-  });
+  // paleta (validada) e tokens de tinta
+  const BLUE = '#2a78d6', AQUA = '#1baf7a';
+  const INK_MUTED = '#898781', INK_SECOND = '#52514e';
+  const GRID = '#e1e0d9';
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  Chart.defaults.color = INK_SECOND;
 
-  new Chart(document.getElementById('topLivrosChart'), {
-    type: 'bar',
-    data: { labels: topLivrosLabels, datasets: [{ label:'Empréstimos', data:topLivrosData, borderWidth:1 }]},
-    options:{responsive:true, scales:{y:{beginAtZero:true}}}
-  });
+  const tooltip = {
+    backgroundColor: '#0b0b0b', padding: 10, cornerRadius: 8,
+    titleFont: { weight: '600' }, displayColors: false,
+  };
 
-  new Chart(document.getElementById('emprestimosMesChart'), {
+  // eixo Y de valores inteiros (empréstimos não são fracionados)
+  const yCount = {
+    beginAtZero: true,
+    grid: { color: GRID, drawBorder: false },
+    border: { display: false },
+    ticks: { color: INK_MUTED, precision: 0 },
+  };
+
+  // ── Empréstimos por mês (linha, série única) ──
+  const mesCtx = document.getElementById('emprestimosMesChart').getContext('2d');
+  const grad = mesCtx.createLinearGradient(0, 0, 0, 240);
+  grad.addColorStop(0, 'rgba(42,120,214,0.22)');
+  grad.addColorStop(1, 'rgba(42,120,214,0.00)');
+  new Chart(mesCtx, {
     type: 'line',
-    data: { labels: mesesLabels, datasets: [{ label:'Empréstimos', data:mesesData, fill:false, tension:0.4 }]},
-    options:{responsive:true, scales:{y:{beginAtZero:true}}}
+    data: { labels: mesesLabels, datasets: [{
+      label: 'Empréstimos', data: mesesData,
+      borderColor: BLUE, borderWidth: 2,
+      fill: true, backgroundColor: grad, tension: 0.35,
+      pointRadius: 3, pointHoverRadius: 6,
+      pointBackgroundColor: BLUE, pointBorderColor: '#fff', pointBorderWidth: 1.5,
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip },
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: INK_MUTED } },
+        y: yCount,
+      },
+    },
   });
+
+  // ── Rankings (barras horizontais, série única + rótulo direto) ──
+  function ranking(canvasId, emptyId, labels, data, cor) {
+    if (!labels.length || data.reduce((a, b) => a + b, 0) === 0) {
+      document.getElementById(emptyId).hidden = false;
+      document.getElementById(canvasId).closest('.chart-box').style.display = 'none';
+      return;
+    }
+    new Chart(document.getElementById(canvasId), {
+      type: 'bar',
+      data: { labels, datasets: [{
+        label: 'Empréstimos', data,
+        backgroundColor: cor, hoverBackgroundColor: cor,
+        borderRadius: 5, borderSkipped: false, maxBarThickness: 24,
+      }]},
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip },
+        scales: {
+          x: { beginAtZero: true, grid: { color: GRID, drawBorder: false }, border: { display: false }, ticks: { color: INK_MUTED, precision: 0 } },
+          y: { grid: { display: false }, border: { display: false }, ticks: { color: INK_SECOND, font: { weight: '500' } } },
+        },
+      },
+    });
+  }
+  ranking('topAlunosChart', 'alunosEmpty', topAlunosLabels, topAlunosData, BLUE);
+  ranking('topLivrosChart', 'livrosEmpty', topLivrosLabels, topLivrosData, AQUA);
 });
 </script>
 {% endblock %}

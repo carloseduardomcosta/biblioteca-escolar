@@ -2,31 +2,106 @@
 {% extends 'base.html' %}
 {% block title %}Empréstimos{% endblock %}
 {% block content %}
-<h1>Empréstimos</h1>
-<a href="{{ url_for('emprestimos.exibir_scan') }}" class="btn btn-primary mb-3">Novo Empréstimo/Devolução</a>
-<table id="emprestimosTable" class="table table-striped datatable">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h1 class="mb-0">Empréstimos</h1>
+  <a href="{{ url_for('emprestimos.exibir_scan') }}" class="btn btn-primary">
+    <i class="fa-solid fa-plus-circle me-1"></i>Balcão (empréstimo/devolução)
+  </a>
+</div>
+
+<!-- Filtro por situação -->
+<div class="btn-group mb-3" role="group" aria-label="Filtrar por situação">
+  {% set tabs = [('ativos','Ativos', n_ativos), ('atrasados','Atrasados', n_atrasados),
+                 ('devolvidos','Devolvidos', n_devolvidos), ('todos','Todos', n_todos)] %}
+  {% for chave, rotulo, n in tabs %}
+  <a href="{{ url_for('emprestimos.listar_emprestimos_html', status=chave) }}"
+     class="btn btn-sm {{ 'btn-primary' if status == chave else 'btn-outline-primary' }}">
+    {{ rotulo }} <span class="badge bg-light text-dark ms-1">{{ n }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+<table id="emprestimosTable" class="table table-striped datatable align-middle">
   <thead>
     <tr>
-      <th>ID</th>
-      <th>Aluno</th>
+      <th>Pessoa</th>
       <th>Livro</th>
-      <th>Data Empréstimo</th>
-      <th>Previsão Devolução</th>
-      <th>Data Devolução</th>
+      <th>Empréstimo</th>
+      <th>Previsão</th>
+      <th>Situação</th>
+      <th>Ações</th>
     </tr>
   </thead>
   <tbody>
     {% for e in emprestimos %}
     <tr>
-      <td>{{ e.id }}</td>
-      <td>{{ e.aluno }}</td>                         {# já vem "0001 — Fulano" #}
-      <td>{{ e.livro }}</td>                        {# já vem "L001 — O Título" #}
-      <td>{{ e.data_emprestimo }}</td>
-      <td>{{ e.data_prevista_devolucao }}</td>
-      <td>{{ e.data_devolucao or '—' }}</td>
+      <td>{{ e.aluno }}</td>
+      <td>{{ e.livro }}</td>
+      <td data-order="{{ e.data_emprestimo_iso }}">{{ e.data_emprestimo }}</td>
+      <td data-order="{{ e.data_prevista_iso }}">{{ e.data_prevista }}</td>
+      <td>
+        {% if e.devolvido %}
+          <span class="badge bg-secondary">Devolvido {{ e.data_devolucao }}</span>
+        {% elif e.atrasado %}
+          <span class="badge bg-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i>Atrasado</span>
+        {% else %}
+          <span class="badge bg-success">Ativo</span>
+        {% endif %}
+      </td>
+      <td class="text-nowrap">
+        {% if not e.devolvido %}
+          <button type="button" class="btn btn-sm btn-warning btn-devolver" data-codigo="{{ e.livro_codigo }}">
+            <i class="fa-solid fa-rotate-left me-1"></i>Devolver
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-primary btn-renovar" data-codigo="{{ e.livro_codigo }}" title="Renovar prazo">
+            <i class="fa-solid fa-calendar-plus"></i>
+          </button>
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
+{% if not emprestimos %}
+<div class="alert alert-light border text-center py-4">
+  Nenhum empréstimo {{ {'ativos':'ativo','atrasados':'em atraso','devolvidos':'devolvido'}.get(status,'') }} por aqui.
+  <a href="{{ url_for('emprestimos.exibir_scan') }}" class="alert-link">Ir para o balcão</a>.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function () {
+  const urlDevolver = "{{ url_for('emprestimos.registrar_devolucao') }}";
+  const urlRenovar  = "{{ url_for('emprestimos.renovar_emprestimo') }}";
+
+  async function post(url, codigo) {
+    const r = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo_livro: codigo })
+    });
+    return { ok: r.ok, data: await r.json().catch(() => ({})) };
+  }
+
+  // delegação: sobrevive à paginação/ordenação do DataTables
+  $('#emprestimosTable').on('click', '.btn-devolver', async function () {
+    const cod = $(this).data('codigo');
+    if (!confirm('Registrar a devolução do livro ' + cod + '?')) return;
+    const { ok, data } = await post(urlDevolver, cod);
+    if (ok) { showToast('success', 'Devolução registrada'); setTimeout(() => location.reload(), 600); }
+    else    { showToast('error', data.error || 'Falha ao devolver'); }
+  });
+
+  $('#emprestimosTable').on('click', '.btn-renovar', async function () {
+    const cod = $(this).data('codigo');
+    const { ok, data } = await post(urlRenovar, cod);
+    if (ok) { showToast('success', 'Renovado até ' + (data.nova_data || '').split('-').reverse().join('/')); setTimeout(() => location.reload(), 600); }
+    else    { showToast('error', data.error || 'Falha ao renovar'); }
+  });
+});
+</script>
 {% endblock %}

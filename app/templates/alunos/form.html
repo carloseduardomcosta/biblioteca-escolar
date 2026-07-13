@@ -1,22 +1,58 @@
 <!-- templates/alunos/form.html -->
 {% extends 'base.html' %}
-{% block title %}{{ 'Editar' if aluno else 'Novo' }} Aluno{% endblock %}
+{% block title %}{{ 'Editar' if aluno else 'Nova' }} pessoa{% endblock %}
 {% block content %}
-<h1>{{ 'Editar' if aluno else 'Novo' }} Aluno</h1>
+<h1 class="mb-4">{{ 'Editar' if aluno else 'Nova' }} pessoa</h1>
 <form method="post" action="">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
   <div class="mb-3">
-    <label for="codigo" class="form-label">Código</label>
+    <label class="form-label d-block">Tipo</label>
+    {% set t = aluno.tipo if aluno else 'aluno' %}
+    <div class="btn-group" role="group" aria-label="Tipo de pessoa">
+      <input type="radio" class="btn-check" name="tipo" id="tipoAluno" value="aluno"
+             {{ 'checked' if t != 'professor' else '' }}>
+      <label class="btn btn-outline-primary" for="tipoAluno">
+        <i class="fa-solid fa-user-graduate me-1"></i>Aluno
+      </label>
+      <input type="radio" class="btn-check" name="tipo" id="tipoProfessor" value="professor"
+             {{ 'checked' if t == 'professor' else '' }}>
+      <label class="btn btn-outline-primary" for="tipoProfessor">
+        <i class="fa-solid fa-chalkboard-user me-1"></i>Professor
+      </label>
+    </div>
+    <div class="form-text">Professor pode pegar qualquer livro (🟢🟡🔴). Aluno só pega 🟢.</div>
+  </div>
+
+  <div class="mb-3">
+    <label for="codigo" class="form-label">Código {% if not aluno %}<small class="text-muted">(matrícula / cartão)</small>{% endif %}</label>
     <input type="text" class="form-control" id="codigo" name="codigo" value="{{ aluno.codigo if aluno else '' }}" {{ 'readonly' if aluno else '' }} required>
   </div>
   <div class="mb-3">
     <label for="nome" class="form-label">Nome</label>
     <input type="text" class="form-control" id="nome" name="nome" value="{{ aluno.nome if aluno else '' }}" required>
   </div>
-  <div class="mb-3">
+  <div class="mb-3" id="campoTurma">
     <label for="turma" class="form-label">Turma</label>
     <input type="text" class="form-control" id="turma" name="turma" value="{{ aluno.turma if aluno else '' }}">
+    <div class="form-text">Só para alunos.</div>
   </div>
+
   <button type="submit" class="btn btn-success">Salvar</button>
-  <a href="{{ url_for('alunos.listar_alunos') }}" class="btn btn-secondary">Cancelar</a>
+  <a href="{{ url_for('alunos.listar_alunos_html') }}" class="btn btn-secondary">Cancelar</a>
 </form>
+
+<script>
+  // esconde a Turma quando o tipo for Professor
+  (function () {
+    const campo = document.getElementById('campoTurma');
+    const radios = document.querySelectorAll('input[name="tipo"]');
+    function sync() {
+      const prof = document.getElementById('tipoProfessor').checked;
+      campo.style.display = prof ? 'none' : '';
+    }
+    radios.forEach(r => r.addEventListener('change', sync));
+    sync();
+  })();
+</script>
 {% endblock %}

@@ -2,19 +2,47 @@
 {% extends 'base.html' %}
 {% block title %}Livros{% endblock %}
 {% block content %}
-<h1>Livros</h1>
-<div class="mb-3">
-  <a href="{{ url_for('livros.novo_livro') }}" class="btn btn-primary me-2">➕ Novo Livro</a>
-  <a href="{{ url_for('livros.importar_livros_form') }}" class="btn btn-secondary me-2">Importar planilha</a>
-  <a href="{{ url_for('livros.triagem_etiquetas') }}" class="btn btn-warning me-1">
-    🎨 Revisar cores{% if pendentes %} ({{ pendentes }}){% endif %}
-  </a>
-  <a href="{{ url_for('livros.etiquetas_pendentes') }}" class="btn btn-success me-1">
-    🏷️ Imprimir etiquetas pendentes{% if pendentes %} ({{ pendentes }}){% endif %}
-  </a>
-  <a href="{{ url_for('livros.exportar_livros_pdf') }}" class="btn btn-outline-secondary btn-sm"
-     onclick="return confirm('Reimprimir as etiquetas de TODO o acervo?');">Reimprimir todas</a>
-  <button type="button" class="btn btn-outline-primary btn-sm" onclick="imprimirSelecionadas()">🖨️ Imprimir selecionadas</button>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h1 class="mb-0">Livros</h1>
+  <div class="d-flex gap-2 flex-wrap">
+    <!-- Ações principais do acervo -->
+    <a href="{{ url_for('livros.novo_livro') }}" class="btn btn-primary">
+      <i class="fa-solid fa-plus me-1"></i>Novo livro
+    </a>
+    <a href="{{ url_for('livros.importar_livros_form') }}" class="btn btn-outline-secondary">
+      <i class="fa-solid fa-file-arrow-up me-1"></i>Importar planilha
+    </a>
+    <!-- Etiquetas agrupadas num único menu -->
+    <div class="btn-group">
+      <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="fa-solid fa-tags me-1"></i>Etiquetas{% if pendentes %} <span class="badge bg-warning text-dark ms-1">{{ pendentes }}</span>{% endif %}
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+        <li>
+          <a class="dropdown-item" href="{{ url_for('livros.triagem_etiquetas') }}">
+            🎨 Revisar cores{% if pendentes %} ({{ pendentes }}){% endif %}
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('livros.etiquetas_pendentes') }}">
+            🏷️ Imprimir pendentes{% if pendentes %} ({{ pendentes }}){% endif %}
+          </a>
+        </li>
+        <li>
+          <button type="button" class="dropdown-item" onclick="imprimirSelecionadas()">
+            🖨️ Imprimir selecionadas
+          </button>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item text-muted" href="{{ url_for('livros.exportar_livros_pdf') }}"
+             onclick="return confirm('Reimprimir as etiquetas de TODO o acervo?');">
+            Reimprimir todas
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
 </div>
 
 <details class="mb-3"{% if tem_filtro %} open{% endif %}>
@@ -133,9 +161,23 @@
       <td>{{ livro.ano_publicacao or '' }}</td>
       <td>{{ livro.categoria }}</td>
       <td title="{{ livro.politica_label }}">{{ livro.bolinha }} {{ livro.politica_label }}</td>
-      <td>{{ livro.situacao }}</td>
-      <td>{{ '✅ impressa' if livro.etiqueta_impressa else '🟠 pendente' }}</td>
       <td>
+        {% if livro.situacao == 'disponível' %}
+          <span class="badge bg-success">Disponível</span>
+        {% else %}
+          <span class="badge bg-warning text-dark">Emprestado</span>
+          {% set p = portadores.get(livro.codigo) %}
+          {% if p %}<div class="small text-muted">com {{ p.nome }}</div>{% endif %}
+        {% endif %}
+      </td>
+      <td>{{ '✅ impressa' if livro.etiqueta_impressa else '🟠 pendente' }}</td>
+      <td class="text-nowrap">
+        {% if livro.situacao != 'disponível' %}
+          <button type="button" class="btn btn-sm btn-warning btn-devolver-livro"
+                  data-codigo="{{ livro.codigo }}" title="Registrar devolução">
+            <i class="fa-solid fa-rotate-left"></i>
+          </button>
+        {% endif %}
         <a href="{{ url_for('livros.editar_livro', codigo=livro.codigo) }}" class="btn btn-sm btn-warning">Editar</a>
         <a href="{{ url_for('livros.deletar_livro', codigo=livro.codigo) }}" class="btn btn-sm btn-danger">Excluir</a>
       </td>
@@ -143,6 +185,14 @@
     {% endfor %}
   </tbody>
 </table>
+
+{% if not livros and not tem_filtro %}
+<div class="alert alert-light border text-center py-4">
+  Nenhum livro no acervo ainda.
+  <a href="{{ url_for('livros.novo_livro') }}" class="alert-link">Cadastrar o primeiro</a>
+  ou <a href="{{ url_for('livros.importar_livros_form') }}" class="alert-link">importar uma planilha</a>.
+</div>
+{% endif %}
 
 <script>
 // marca/desmarca todas (em todas as páginas do DataTable)
@@ -159,6 +209,11 @@ function imprimirSelecionadas(){
   var form = document.createElement('form');
   form.method = 'post';
   form.action = '{{ url_for("livros.etiquetas_selecionadas") }}';
+  // token CSRF (form gerado via JS não herda o campo oculto do template)
+  var tok = document.createElement('input');
+  tok.type = 'hidden'; tok.name = 'csrf_token';
+  tok.value = document.querySelector('meta[name="csrf-token"]').content;
+  form.appendChild(tok);
   marcadas.each(function () {
     var i = document.createElement('input');
     i.type = 'hidden'; i.name = 'codigos'; i.value = this.value;
@@ -167,5 +222,21 @@ function imprimirSelecionadas(){
   document.body.appendChild(form);
   form.submit();
 }
+
+// devolução rápida direto da lista de livros
+$(function () {
+  const urlDevolver = "{{ url_for('emprestimos.registrar_devolucao') }}";
+  $('#livrosTable').on('click', '.btn-devolver-livro', async function () {
+    const cod = $(this).data('codigo');
+    if (!confirm('Registrar a devolução do livro ' + cod + '?')) return;
+    const r = await fetch(urlDevolver, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo_livro: cod })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) { showToast('success', 'Devolução registrada: ' + cod); setTimeout(() => location.reload(), 600); }
+    else      { showToast('error', data.error || 'Falha ao devolver'); }
+  });
+});
 </script>
 {% endblock %}

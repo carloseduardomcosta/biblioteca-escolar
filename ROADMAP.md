@@ -34,8 +34,10 @@ Aproveitar o código de barras que o cartão da merenda já tem — zero impress
 - ✅ **Fluxo do bipador testado**: `obter_aluno/<matrícula>` retorna o aluno (matrícula inexistente → 404)
 - 🔨 Fallback: aluno sem cartão → sistema gera carteirinha própria (barcode já é gerado no cadastro/import)
 
-## Épico D — Esquema das bolinhas (política de circulação) 🔨
+## Épico D — Esquema das bolinhas (política de circulação) ✅
 Separado do estado atual (disponível/emprestado). É a *regra* de cada livro.
+> ✅ Concluído: campo `politica` (🟢/🟡/🔴), bloqueio no empréstimo e **política por papel**
+> (aluno só 🟢, professor qualquer livro) — ver sessão 2026-07-13.
 - 🔨 Novo campo `politica` no livro:
   - 🟢 `emprestavel` — pode levar pra casa
   - 🟡 `consulta` — só lê na biblioteca
@@ -66,6 +68,30 @@ Aproveitar a infra de proxy já existente em `/opt/infra/proxy` (nginx no `proxy
 
 ---
 
+## Sessão 2026-07-13 — Professores, revisão do empréstimo e UX ✅
+- ✅ **Cadastro de professores** numa central de **Pessoas** (coluna `tipo` em `aluno`, ENUM
+  aluno/professor, default aluno; migração `mysql/migrations/001_add_tipo_pessoa.sql`, guard
+  idempotente, aplicada em produção). Empréstimo segue apontando p/ `aluno_id` (sem mudança de
+  schema lá). Filtro Alunos/Professores + badge de tipo.
+- ✅ **Política por papel** (fecha o Épico D): aluno só 🟢; **professor pega qualquer livro**.
+- ✅ **Revisão do fluxo de empréstimo/devolução**: **balcão único** guiado pelo estado do livro;
+  **fonte da verdade = empréstimo em aberto** (auto-corrige `situacao`, impede 2 empréstimos do
+  mesmo livro); erros com `code` (policy/unavailable/…); **prazo por tipo** (aluno 7 / professor
+  30, ajustável); **atraso só avisa**; **renovação** (nova rota `/emprestimos/renovar`). Removida
+  a tela `manual.html` (bug do 409) — `/manual` redireciona pro balcão.
+- ✅ **UX**: dashboard moderno com **KPIs clicáveis**; **baixa/renovação** na lista de
+  empréstimos (filtros Ativos/Atrasados/Devolvidos), na lista de Pessoas e na de Livros
+  (situação colorida + "com quem"); botão **Emprestar** por pessoa (`?pessoa=`); 7 botões de
+  Livros reorganizados (menu **Etiquetas**); **badge de atrasados** no menu; **beep** no sucesso;
+  empty states.
+- ✅ **Login** redesenhado (card + herói animado) e cache-busting de CSS por mtime.
+- ✅ **Segurança** (fecha os "Aberto" de 2026-07-09): **CSRF** (CSRFProtect + token nos forms/AJAX),
+  **lockout por conta** no login, **open redirect** corrigido, **ProxyFix** (CF-Connecting-IP →
+  IP real no log + HTTPS reconhecido).
+- ✅ **Testes** (pytest, SQLite isolado): fluxo de empréstimo/devolução/renovação, política por
+  papel, prazos, lockout e open-redirect — **26 passando**. Infra de teste reescrita (rebind do
+  `SessionLocal`, usuário logado, tenant por teste).
+
 ## Sessão 2026-07-11 — Etiquetas, cadastro e busca ✅
 - ✅ **Etiqueta redesenhada** p/ dobrar sobre a lombada: barcode (capa) + "Biblioteca Escola Gallotti" na lombada (largura = espessura) + bolinha Ø1 cm (contracapa). Número do barcode em vetor (nítido). **3 colunas / 33 por folha A4**, bolinha ancorada à direita (sem sobra), sem tracejado.
 - ✅ **Campo `espessura`** no livro (ENUM fininho/fino/médio/grosso; migração aplicada, default `medio`) — ajusta a faixa central da etiqueta. Disponível no cadastro e na edição.
@@ -80,7 +106,8 @@ Aproveitar a infra de proxy já existente em `/opt/infra/proxy` (nginx no `proxy
 ## Segurança (revisão 2026-07-09)
 Corrigido: ✅ cadastro público removido (era `/auth/register` na tela de login) ✅ `SQL echo` desligado (vazava SQL/hashes no log) ✅ cookie de sessão `Secure/HttpOnly/SameSite=Lax` ✅ MySQL não exposto ✅ porta 65000 só localhost ✅ isolamento multi-tenant testado.
 Corrigido tb: ✅ **exclusão via POST+confirmação** (evoluída em 11/07 → página de confirmação + **senha do usuário**, ver "Sessão 2026-07-11") ✅ **papel de admin real** (coluna `is_admin`; `/usuarios` só p/ admin; `macedo`=admin; novos usuários = bibliotecário comum, com checkbox no form).
-Aberto (prioridade): 🟡 **sem rate-limit no login** (brute force; usar regra Cloudflare ou Flask-Limiter) · 🟢 IP real nos acessos (ProxyFix p/ CF-Connecting-IP) · 🟢 container roda como root · 🟢 CSRF (mitigado por SameSite=Lax; habilitar CSRFProtect como reforço).
+Resolvido em 2026-07-13 (ver sessão): ✅ **rate-limit/lockout no login** (por conta) ✅ **IP real nos acessos** (ProxyFix p/ CF-Connecting-IP) ✅ **CSRF** (CSRFProtect + token nos forms/AJAX) ✅ **open redirect** do `?next=`.
+Aberto: 🟢 container roda como root (endurecer usuário no Dockerfile) · 🟢 PNG de barcode órfão ao excluir livro (cosmético).
 
 ## Ordem sugerida
 1. **A** (multi-tenant) — antes de dados reais

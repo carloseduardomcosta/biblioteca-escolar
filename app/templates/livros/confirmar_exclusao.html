@@ -16,6 +16,7 @@
 </div>
 
 <form method="post" action="{{ url_for('livros.deletar_livro', codigo=livro.codigo) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="mb-3" style="max-width:340px">
     <label for="senha" class="form-label">
       Confirme com a sua senha (<strong>{{ current_user.username }}</strong>)

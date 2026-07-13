@@ -5,6 +5,7 @@
 <h1 class="mb-4">Status de Empréstimos do Aluno</h1>
 
 <form method="POST" class="row g-2 align-items-end mb-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="col-md-8">
     <label for="codigo_aluno" class="form-label">Código do Aluno</label>
     <input 

@@ -2,14 +2,17 @@
 {% extends 'base.html' %}
 {% block title %}Importar Alunos{% endblock %}
 {% block content %}
-<h1>Importar Alunos</h1>
+<h1>Importar pessoas</h1>
 <p class="text-muted">
-  Baixe o modelo, preencha a relação de alunos e envie. O campo <strong>codigo</strong>
+  Baixe o modelo, preencha a relação de pessoas e envie. O campo <strong>codigo</strong>
   é a <strong>matrícula</strong> (o mesmo número do cartão da merenda) — é o que o
-  bipador vai ler para puxar o aluno. Aceita <strong>.xlsx</strong> ou <strong>.csv</strong>;
-  acentos são preservados e matrículas repetidas são ignoradas.
+  bipador vai ler para puxar a pessoa. A coluna <strong>tipo</strong> é opcional
+  (<code>aluno</code> ou <code>professor</code>; em branco vira aluno). Aceita
+  <strong>.xlsx</strong> ou <strong>.csv</strong>; acentos são preservados e
+  matrículas repetidas são ignoradas.
 </p>
 <form action="{{ url_for('alunos.importar_alunos') }}" method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="mb-3">
     <a href="{{ url_for('alunos.download_alunos_template') }}" class="btn btn-info mb-3">
       ⬇️ Baixar modelo (Excel)

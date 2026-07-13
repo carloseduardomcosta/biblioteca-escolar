@@ -27,14 +27,30 @@ def _escola_id():
     return current_user.escola_id
 
 
+def _parse_tipo(valor, default='aluno'):
+    """Normaliza o papel da pessoa; aceita variações da planilha/formulário."""
+    v = (valor or '').strip().lower()
+    if v in ('professor', 'professora', 'prof', 'docente'):
+        return 'professor'
+    if v in ('aluno', 'aluna', 'estudante', 'discente', ''):
+        return 'aluno'
+    return default
+
+
 @bp.route('/listar', methods=['GET'])
 def listar_alunos_html():
+    # filtro opcional por papel: ?tipo=aluno | professor (vazio = todos)
+    f_tipo = request.args.get('tipo', '').strip().lower()
+    if f_tipo not in ('aluno', 'professor'):
+        f_tipo = ''
+
     with SessionLocal() as db:
-        registros = (
+        query = (
             db.query(
                 Aluno.id,
                 Aluno.codigo,
                 Aluno.nome,
+                Aluno.tipo,
                 Aluno.turma,
                 Aluno.barcode_img,
                 # agrupa todos os códigos de livro ainda não devolvidos
@@ -49,8 +65,16 @@ def listar_alunos_html():
             )
             .outerjoin(Livro, Emprestimo.livro_id == Livro.id)
             .filter(Aluno.escola_id == _escola_id())
-            .group_by(Aluno.id)
-            .all()
+        )
+        if f_tipo:
+            query = query.filter(Aluno.tipo == f_tipo)
+        registros = query.group_by(Aluno.id).all()
+
+        # contagens por papel (para os botões de filtro)
+        cont = dict(
+            db.query(Aluno.tipo, func.count(Aluno.id))
+              .filter(Aluno.escola_id == _escola_id())
+              .group_by(Aluno.tipo).all()
         )
 
         alunos = []
@@ -60,12 +84,15 @@ def listar_alunos_html():
                 'id': a.id,
                 'codigo': a.codigo,
                 'nome': a.nome,
+                'tipo': a.tipo,
                 'turma': a.turma,
                 'barcode_img': a.barcode_img,
                 'livros_ativos': ativos
             })
 
-    return render_template('alunos/list.html', alunos=alunos)
+    return render_template('alunos/list.html', alunos=alunos, filtro_tipo=f_tipo,
+                           n_alunos=cont.get('aluno', 0),
+                           n_professores=cont.get('professor', 0))
 
 @bp.route('/template', methods=['GET'])
 def download_alunos_template():
@@ -80,8 +107,10 @@ def download_alunos_template():
         )
     si = io.StringIO()
     writer = csv.writer(si)
-    writer.writerow(['codigo', 'nome', 'turma'])
-    writer.writerow(['12345', 'Nome do Aluno', '5º Ano A'])
+    # coluna "tipo" é opcional (aluno|professor); em branco = aluno
+    writer.writerow(['codigo', 'nome', 'turma', 'tipo'])
+    writer.writerow(['12345', 'Nome do Aluno', '5º Ano A', 'aluno'])
+    writer.writerow(['9001', 'Nome do Professor', '', 'professor'])
     return Response(
         si.getvalue(),
         mimetype='text/csv',
@@ -123,7 +152,8 @@ def importar_alunos():
             total += 1
             codigo = str(row.get('codigo', '')).strip()
             nome   = str(row.get('nome', '')).strip()
-            turma  = str(row.get('turma', '')).strip()
+            tipo   = _parse_tipo(row.get('tipo'))          # coluna opcional; default aluno
+            turma  = '' if tipo == 'professor' else str(row.get('turma', '')).strip()
 
             if not codigo or not nome:
                 pulos_sem_dados.append(total)
@@ -138,7 +168,7 @@ def importar_alunos():
             vistos.add(codigo)
             # gera barcode da matrícula (útil p/ quem NÃO usa o cartão da merenda)
             arquivo = gerar_barcode(codigo, pasta)
-            db.add(Aluno(escola_id=escola_id, codigo=codigo, nome=nome,
+            db.add(Aluno(escola_id=escola_id, codigo=codigo, nome=nome, tipo=tipo,
                          turma=turma, barcode_img=arquivo))
             created += 1
         db.commit()
@@ -156,10 +186,8 @@ def importar_alunos():
 
 @bp.route('/', methods=['GET'])
 def listar_alunos():
-    """Lista todos os alunos da escola"""
-    with SessionLocal() as db:
-        alunos = db.query(Aluno).filter_by(escola_id=_escola_id()).all()
-    return render_template('alunos/list.html', alunos=alunos)
+    """Rota antiga — unifica na central de Pessoas (/listar)."""
+    return redirect(url_for('alunos.listar_alunos_html', **request.args))
 
 @bp.route('/novo', methods=['GET', 'POST'])
 def novo_aluno():
@@ -167,7 +195,9 @@ def novo_aluno():
     if request.method == 'POST':
         codigo = request.form['codigo'].strip()
         nome = request.form['nome'].strip()
-        turma = request.form.get('turma', '').strip()
+        tipo = _parse_tipo(request.form.get('tipo'))
+        # professor não tem turma
+        turma = '' if tipo == 'professor' else request.form.get('turma', '').strip()
         if not codigo or not nome:
             flash('Código e nome são obrigatórios.', 'warning')
             return redirect(url_for('alunos.novo_aluno'))
@@ -177,7 +207,7 @@ def novo_aluno():
         os.makedirs(pasta, exist_ok=True)
         arquivo = gerar_barcode(codigo, pasta)
 
-        aluno = Aluno(escola_id=_escola_id(), codigo=codigo, nome=nome,
+        aluno = Aluno(escola_id=_escola_id(), codigo=codigo, nome=nome, tipo=tipo,
                       turma=turma, barcode_img=arquivo)
         with SessionLocal() as db:
             db.add(aluno)
@@ -202,11 +232,13 @@ def editar_aluno(codigo):
 
     if request.method == 'POST':
         aluno.nome = request.form['nome'].strip()
-        aluno.turma = request.form.get('turma', aluno.turma).strip()
+        aluno.tipo = _parse_tipo(request.form.get('tipo'), aluno.tipo)
+        # professor não tem turma; aluno mantém/atualiza
+        aluno.turma = '' if aluno.tipo == 'professor' else request.form.get('turma', aluno.turma).strip()
         with SessionLocal() as db:
             db.merge(aluno)
             db.commit()
-            flash('Aluno atualizado com sucesso!', 'success')
+            flash('Cadastro atualizado com sucesso!', 'success')
         return redirect(url_for('alunos.listar_alunos'))
 
     return render_template('alunos/form.html', aluno=aluno)

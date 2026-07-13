@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from config.settings import SessionLocal
 from models.aluno import Aluno
 from models.livro import Livro
+from models.emprestimo import Emprestimo
 from utils.barcode import gerar_barcode
 from utils.planilha import linhas_planilha, parse_ano
 import os, csv, io, re
@@ -252,10 +253,21 @@ def listar_livros():
                                   Livro.categoria.isnot(None), Livro.categoria != '')
                           .distinct().order_by(Livro.categoria)]
 
+        # quem está com cada livro emprestado (livro.codigo -> pessoa)
+        portadores = {}
+        for lc, ac, an in (db.query(Livro.codigo, Aluno.codigo, Aluno.nome)
+                             .join(Emprestimo, Emprestimo.livro_id == Livro.id)
+                             .join(Aluno, Emprestimo.aluno_id == Aluno.id)
+                             .filter(Livro.escola_id == _escola_id(),
+                                     Emprestimo.data_devolucao.is_(None))
+                             .all()):
+            portadores[lc] = {'codigo': ac, 'nome': an}
+
     tem_filtro = any([f_q, f_codigo, f_titulo, f_autor, f_categoria, f_ano, f_ano_ate,
                       f_politica, f_espessura, f_situacao, f_etiqueta])
     return render_template('livros/list.html', livros=livros, pendentes=pendentes,
-                           categorias=categorias, filtros=a, tem_filtro=tem_filtro)
+                           categorias=categorias, filtros=a, tem_filtro=tem_filtro,
+                           portadores=portadores)
 
 @bp.route('/novo', methods=['GET', 'POST'])
 def novo_livro():
@@ -345,25 +357,13 @@ def similares():
 
 @bp.route('/<string:codigo>/editar', methods=['GET', 'POST'])
 def editar_livro(codigo):
-    """Form e atualização de livro existente"""
-    with SessionLocal() as db:
-        livro = db.query(Livro).filter_by(codigo=codigo, escola_id=_escola_id()).first()
-    if not livro:
-        flash('Livro não encontrado.', 'warning')
-        return redirect(url_for('livros.listar_livros'))
+    """Form e atualização de livro existente.
 
+    Todo o trabalho (carga + mutação + criação de exemplares) roda dentro de
+    UMA ÚNICA sessão — nada de objeto detached vindo de outra sessão.
+    """
     if request.method == 'POST':
         titulo_in = request.form['titulo'].strip()
-        livro.autor = request.form.get('autor', livro.autor).strip()
-        ano = request.form.get('ano_publicacao', livro.ano_publicacao)
-        livro.ano_publicacao = int(ano) if ano else None
-        livro.categoria = request.form.get('categoria', livro.categoria).strip()
-        livro.situacao = request.form.get('situacao', livro.situacao)
-        if request.form.get('politica'):
-            livro.politica = _parse_politica(request.form.get('politica'), livro.politica)
-        if request.form.get('espessura'):
-            livro.espessura = _parse_espessura(request.form.get('espessura'), livro.espessura)
-
         # Exemplares iguais: se o total informado for > 1, este vira "- 1" e o
         # restante é criado em sequência (títulos "- 2", "- 3"..., códigos padrão).
         try:
@@ -372,13 +372,27 @@ def editar_livro(codigo):
             total = 1
         total = max(1, min(total, 50))
         base = re.sub(r'\s*-\s*\d+\s*$', '', titulo_in).strip()   # remove sufixo "- N" se houver
-        livro.titulo = f'{base} - 1' if total >= 2 else titulo_in
 
         pasta = os.path.join(current_app.static_folder, 'barcodes')
         os.makedirs(pasta, exist_ok=True)
 
         with SessionLocal() as db:
-            db.merge(livro)
+            livro = db.query(Livro).filter_by(codigo=codigo, escola_id=_escola_id()).first()
+            if not livro:
+                flash('Livro não encontrado.', 'warning')
+                return redirect(url_for('livros.listar_livros'))
+
+            livro.autor = request.form.get('autor', livro.autor).strip()
+            ano = request.form.get('ano_publicacao', livro.ano_publicacao)
+            livro.ano_publicacao = int(ano) if ano else None
+            livro.categoria = request.form.get('categoria', livro.categoria).strip()
+            livro.situacao = request.form.get('situacao', livro.situacao)
+            if request.form.get('politica'):
+                livro.politica = _parse_politica(request.form.get('politica'), livro.politica)
+            if request.form.get('espessura'):
+                livro.espessura = _parse_espessura(request.form.get('espessura'), livro.espessura)
+            livro.titulo = f'{base} - 1' if total >= 2 else titulo_in
+
             novos = []
             if total >= 2:
                 codigos = _proximos_codigos(db, livro.escola_id, total - 1)
@@ -404,19 +418,19 @@ def editar_livro(codigo):
                 flash('Erro ao salvar. Verifique se algum código já existe.', 'danger')
         return redirect(url_for('livros.listar_livros'))
 
-    return render_template('livros/form.html', livro=livro)
+    # GET → renderiza o form dentro da sessão (evita acesso a objeto detached)
+    with SessionLocal() as db:
+        livro = db.query(Livro).filter_by(codigo=codigo, escola_id=_escola_id()).first()
+        if not livro:
+            flash('Livro não encontrado.', 'warning')
+            return redirect(url_for('livros.listar_livros'))
+        return render_template('livros/form.html', livro=livro)
 
 @bp.route('/<string:codigo>/deletar', methods=['GET', 'POST'])
 def deletar_livro(codigo):
     """Exclusão protegida: página de confirmação (dupla confirmação) + senha
     de quem está excluindo. Evita exclusões acidentais (que deixam vão na
     numeração, pois o código não é reaproveitado)."""
-    with SessionLocal() as db:
-        livro = db.query(Livro).filter_by(codigo=codigo, escola_id=_escola_id()).first()
-    if not livro:
-        flash('Livro não encontrado.', 'warning')
-        return redirect(url_for('livros.listar_livros'))
-
     if request.method == 'POST':
         senha = request.form.get('senha', '')
         if not senha or not check_password_hash(current_user.password_hash, senha):
@@ -424,14 +438,22 @@ def deletar_livro(codigo):
             return redirect(url_for('livros.deletar_livro', codigo=codigo))
         with SessionLocal() as db:
             obj = db.query(Livro).filter_by(codigo=codigo, escola_id=_escola_id()).first()
-            if obj:
-                db.delete(obj)
-                db.commit()
-        flash(f'Livro {codigo} — "{livro.titulo}" excluído por {current_user.username}.', 'success')
+            if not obj:
+                flash('Livro não encontrado.', 'warning')
+                return redirect(url_for('livros.listar_livros'))
+            titulo = obj.titulo          # captura antes de excluir/fechar a sessão
+            db.delete(obj)
+            db.commit()
+        flash(f'Livro {codigo} — "{titulo}" excluído por {current_user.username}.', 'success')
         return redirect(url_for('livros.listar_livros'))
 
-    # GET → página de confirmação
-    return render_template('livros/confirmar_exclusao.html', livro=livro)
+    # GET → página de confirmação (renderiza dentro da sessão)
+    with SessionLocal() as db:
+        livro = db.query(Livro).filter_by(codigo=codigo, escola_id=_escola_id()).first()
+        if not livro:
+            flash('Livro não encontrado.', 'warning')
+            return redirect(url_for('livros.listar_livros'))
+        return render_template('livros/confirmar_exclusao.html', livro=livro)
 
 
 

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
   <title>{% block title %}Biblioteca Escolar{% endblock %}</title>
 
   <!-- favicon padrão -->
@@ -21,7 +22,7 @@
   <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
-  <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet"/>
+  <link href="{{ static_v('css/custom.css') }}" rel="stylesheet"/>
   <style>
     body { font-family: 'Inter', sans-serif; }
     .navbar { background: #fff; }
@@ -53,7 +54,7 @@
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item">
             <a class="nav-link {% if request.path.startswith('/alunos') %}active{% endif %}" href="{{ url_for('alunos.listar_alunos_html') }}">
-              <i class="fa-solid fa-user-graduate me-1"></i>Alunos
+              <i class="fa-solid fa-users me-1"></i>Pessoas
             </a>
           </li>
           <li class="nav-item">
@@ -64,13 +65,14 @@
           <li class="nav-item">
             <a class="nav-link {% if request.path.startswith('/emprestimos') %}active{% endif %}" href="{{ url_for('emprestimos.listar_emprestimos_html') }}">
               <i class="fa-solid fa-book-reader me-1"></i>Empréstimos
+              {% if atrasados_count %}<span class="badge rounded-pill bg-danger ms-1" title="{{ atrasados_count }} em atraso">{{ atrasados_count }}</span>{% endif %}
             </a>
           </li>
           <!-- Botão destacado -->
           <li class="nav-item ms-3">
             <a href="{{ url_for('emprestimos.exibir_scan') }}"
                class="btn btn-gradient rounded-pill px-4 py-2 {% if request.path.startswith('/emprestimos/scan') %}shadow{% endif %}">
-              <i class="fa-solid fa-plus-circle me-2"></i>Novo Empréstimo
+              <i class="fa-solid fa-hand-holding-hand me-2"></i>Balcão
             </a>
           </li>
         </ul>
@@ -133,6 +135,9 @@
     {% block content %}{% endblock %}
   </main>
 
+  <!-- som de confirmação (usado por showToast em sucessos, útil na bipagem) -->
+  <audio id="toastSound" src="{{ url_for('static', filename='sounds/success-off.mp3') }}" preload="auto"></audio>
+
    <!-- ... jQuery, Bootstrap, DataTables, Toastr ... -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -150,6 +155,36 @@
   
   
   <script>
+  // ── CSRF: injeta o token em toda chamada AJAX que altera estado ──
+  // Forms HTML enviam o campo oculto; aqui cobrimos jQuery.ajax e fetch().
+  const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const _METODO_SEGURO = /^(GET|HEAD|OPTIONS|TRACE)$/i;
+
+  $.ajaxSetup({
+    beforeSend: function (xhr, settings) {
+      if (!_METODO_SEGURO.test(settings.type || 'GET')) {
+        xhr.setRequestHeader('X-CSRFToken', CSRF_TOKEN);
+      }
+    }
+  });
+
+  // embrulha o fetch nativo p/ mandar o header em requisições same-origin não-GET
+  const _fetchOriginal = window.fetch;
+  window.fetch = function (input, init) {
+    init = init || {};
+    const metodo = (init.method
+      || (typeof input !== 'string' && input && input.method)
+      || 'GET').toUpperCase();
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    const sameOrigin = !/^https?:\/\//i.test(url) || url.startsWith(window.location.origin);
+    if (sameOrigin && !_METODO_SEGURO.test(metodo)) {
+      const headers = new Headers(init.headers
+        || (typeof input !== 'string' && input && input.headers) || {});
+      if (!headers.has('X-CSRFToken')) headers.set('X-CSRFToken', CSRF_TOKEN);
+      init.headers = headers;
+    }
+    return _fetchOriginal(input, init);
+  };
 
   $(function(){
     $('.datatable').DataTable({

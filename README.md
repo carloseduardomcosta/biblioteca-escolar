@@ -17,14 +17,22 @@ Projeto sem fins lucrativos, em uso na **EEB Teófilo Nolasco de Almeida**.
   e status da etiqueta), **exemplares repetidos** (cria N cópias com sufixo "- 1", "- 2"…, no
   cadastro ou na edição) e **alerta de títulos parecidos** ao digitar (evita duplicatas). A
   numeração **reaproveita os vãos** deixados por exclusões.
-- **Alunos**: cadastro e importação em massa. O código do aluno é a **matrícula**
-  (o mesmo número do cartão da merenda), lida pelo bipador.
-- **Empréstimos/Devoluções**: por leitura de código de barras (scan) ou manual.
-- **Esquema das bolinhas** (política de circulação por livro):
-  - 🟢 **Pode levar pra casa** — empréstimo normal
-  - 🟡 **Só na biblioteca** — consulta local (não empresta)
+- **Pessoas (alunos e professores)**: cadastro e importação em massa numa única central
+  (`/alunos/listar`), com **filtro por tipo** e marcação Aluno/Professor. O código é a
+  **matrícula** (o mesmo número do cartão da merenda), lida pelo bipador.
+- **Balcão único de Empréstimos/Devoluções** (`/emprestimos/scan`): bipe/informe o **livro** e
+  o sistema **detecta o estado** — disponível → empréstimo; emprestado → devolução ou
+  **renovação**. Também é possível dar **baixa pela pessoa** (na lista de Pessoas e no balcão) ou
+  pela **lista de empréstimos** (botão Devolver/Renovar por linha, com filtros Ativos/Atrasados/
+  Devolvidos).
+- **Prazo por papel**: aluno **7 dias**, professor **30 dias** (ajustável no ato). Quem tem livro
+  em atraso é **avisado** (não bloqueado).
+- **Esquema das bolinhas** (política de circulação por livro) + **política por papel**:
+  - 🟢 **Pode levar pra casa** — empréstimo normal (qualquer pessoa)
+  - 🟡 **Só na biblioteca** — consulta local
   - 🔴 **Não empresta** — restrito (livro de professor etc.)
-  O empréstimo de livros 🟡/🔴 é **bloqueado** automaticamente.
+  Regra: **aluno só pega 🟢**; **professor pega qualquer livro** (🟢🟡🔴).
+- **Dashboard** com KPIs **clicáveis** (cada indicador leva à lista filtrada) e badge de atrasados no menu.
 - **Fluxo de produção**: cadastro com **código sequencial automático**, **fila de etiquetas
   pendentes** (imprime em lote) e **etiqueta dobrável** em PDF — ideal para catalogar
   milhares de livros do zero (veja abaixo).
@@ -89,7 +97,7 @@ Modelos também disponíveis na raiz do repositório:
 | Planilha | Colunas |
 |----------|---------|
 | Livros   | `codigo`, `titulo`, `autor`, `ano_publicacao`, `categoria`, `grupo` |
-| Alunos   | `codigo` (matrícula), `nome`, `turma` |
+| Pessoas  | `codigo` (matrícula), `nome`, `turma`, `tipo` (`aluno`/`professor`, opcional — vazio = aluno) |
 
 ## 🏭 Fluxo de produção (catalogar do zero)
 
@@ -134,13 +142,25 @@ recomenda-se **restringir por IP** (rede da escola/VPN) ou usar uma VPN.
 
 ## 🔒 Segurança
 
+- **CSRF** habilitado em todos os POST (Flask-WTF `CSRFProtect`); forms enviam token oculto e
+  as chamadas AJAX enviam o header `X-CSRFToken` (injetado no `base.html`).
+- **Anti-brute-force no login**: no máx. 5 tentativas erradas **por conta** em 15 min (um login
+  bem-sucedido zera). É por conta, não por IP, porque a app roda atrás de proxy compartilhado.
+- **Sem open redirect**: o `?next=` do login só aceita caminho local.
+- **`ProxyFix` (Cloudflare/nginx)**: usa `CF-Connecting-IP` para registrar o IP real do cliente
+  no log de acessos e reconhecer HTTPS.
 - Cadastro de usuário só na área administrativa (logado); sem cadastro público.
 - Cookies de sessão `Secure` + `HttpOnly` + `SameSite=Lax`.
 - Senhas com hash (werkzeug/scrypt). MySQL não exposto para fora.
-- Exclusão de livro protegida: **página de confirmação dedicada + senha do usuário logado**
-  (evita exclusões acidentais; o código excluído deixa vão e não é reusado por reimpressão,
-  embora o cadastro reaproveite vãos ao criar novos livros).
+- Exclusão de livro protegida: **página de confirmação dedicada + senha do usuário logado**.
 - **Nunca** versione o `.env` (contém senhas e chaves).
+
+## 🧪 Testes e migrações
+
+- Testes com **pytest** em `app/tests/` (SQLite isolado por teste; cobre empréstimo/devolução/
+  renovação, política por papel, prazos, lockout e open-redirect): `python -m pytest tests/`.
+- **Migrações** de schema (não geridas por `create_all`) ficam em `mysql/migrations/` com um
+  guard idempotente — ex.: `001_add_tipo_pessoa.sql` (coluna `tipo` em `aluno`).
 
 ## 🗺️ Roadmap
 

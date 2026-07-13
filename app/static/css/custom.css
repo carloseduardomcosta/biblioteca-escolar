@@ -57,3 +57,312 @@ table.dataTable tbody tr:nth-child(even) {
 .toast-success {
   background-color: #2ecc71 !important;
 }
+
+/* 7) Tela de login */
+.login-wrapper {
+  max-width: 420px;
+  margin: 2rem auto;
+}
+.login-card {
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.login-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  font-size: 1.6rem;
+  color: #fff;
+  background: linear-gradient(135deg, #0052d4, #4364f7, #6fb1fc);
+  box-shadow: 0 6px 16px rgba(67, 100, 247, 0.35);
+}
+
+/* entrada do card (aparece deslizando de baixo) */
+.login-card {
+  animation: login-in 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes login-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* herói animado do topo do login: livro central pulsando + ícones orbitando */
+.login-hero {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  margin: 0 auto;
+}
+.login-hero .login-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  animation: ba-float 3.5s ease-in-out infinite;
+}
+.login-hero .ba-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  border: 2px solid rgba(67, 100, 247, 0.5);
+  border-radius: 50%;
+  animation: ba-pulse 2.8s ease-out infinite;
+}
+.login-hero .ba-ring--2 { animation-delay: 1.4s; }
+.login-hero .login-orbit {
+  position: absolute;
+  inset: 0;
+  animation: ba-spin 16s linear infinite;
+}
+.login-hero .ba-sat {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #2c6fdb;
+  font-size: 0.72rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  animation: ba-spin-rev 16s linear infinite;
+}
+.login-hero .ba-sat--1 { top: 50%;  left: 2px; }
+.login-hero .ba-sat--2 { top: 2px;  left: 50%; }
+.login-hero .ba-sat--3 { top: 50%;  left: auto; right: 2px; margin-left: 0; margin-right: -13px; }
+.login-hero .ba-sat--4 { top: auto; bottom: 2px; left: 50%; margin-top: 0; margin-bottom: -13px; }
+/* junta os ícones aos campos (input-group sem emenda visível) */
+.login-card .input-group-text {
+  border-color: #ced4da;
+}
+.login-card .form-control:focus {
+  box-shadow: none;
+  border-color: #5dade2;
+}
+/* mantém a borda de foco coerente ao redor do input-group inteiro */
+.login-card .input-group:focus-within {
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 0.2rem rgba(93, 173, 226, 0.25);
+}
+.login-card .input-group:focus-within .input-group-text,
+.login-card .input-group:focus-within .form-control {
+  border-color: #5dade2;
+}
+#togglePassword {
+  cursor: pointer;
+}
+
+/* 8) Animações compartilhadas (usadas pelo herói do login) */
+@keyframes ba-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+@keyframes ba-pulse {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  100% { transform: scale(2.1); opacity: 0;   }
+}
+@keyframes ba-spin      { to { transform: rotate(360deg);  } }
+@keyframes ba-spin-rev  { to { transform: rotate(-360deg); } }
+
+/* respeita quem prefere menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  .login-card,
+  .login-hero .login-badge,
+  .login-hero .ba-ring,
+  .login-hero .login-orbit,
+  .login-hero .ba-sat { animation: none; }
+}
+
+/* 9) Dashboard ------------------------------------------------------------ */
+.dash {
+  /* tokens de tinta/paleta usados nos KPIs e painéis */
+  --ink-1: #1a1a19;
+  --ink-2: #52514e;
+  --ink-muted: #898781;
+  --panel-border: #e7e6df;
+  --panel-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.04);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* cabeçalho */
+.dash-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.dash-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--ink-1);
+  margin: 0;
+}
+.dash-sub {
+  color: var(--ink-muted);
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+}
+
+/* grade de KPIs */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.kpi {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.85rem;
+  align-items: center;
+  padding: 1.1rem 1.2rem;
+  background: #fff;
+  border: 1px solid var(--panel-border);
+  border-radius: 1rem;
+  box-shadow: var(--panel-shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  text-decoration: none;   /* é um <a>: sem sublinhado, herda a cor da tinta */
+  color: inherit;
+}
+.kpi:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 22px rgba(16, 24, 40, 0.09);
+}
+/* faixa de cor à esquerda (acento semântico) */
+.kpi::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 12px; bottom: 12px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--accent);
+}
+.kpi__icon {
+  grid-row: 1 / span 2;
+  width: 46px; height: 46px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+  font-size: 1.15rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.kpi__label {
+  align-self: end;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.kpi__value {
+  align-self: start;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink-1);
+}
+.kpi__hint {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+/* acentos semânticos (paleta validada) */
+.kpi--info     { --accent: #2a78d6; --accent-soft: #eaf2fc; }
+.kpi--violet   { --accent: #4a3aa7; --accent-soft: #eeecf8; }
+.kpi--aqua     { --accent: #1baf7a; --accent-soft: #e5f6ef; }
+.kpi--good     { --accent: #0ca30c; --accent-soft: #e6f5e6; }
+.kpi--critical { --accent: #d03b3b; --accent-soft: #fbebeb; }
+.kpi--muted    { --accent: #898781; --accent-soft: #f0efec; }
+
+/* painéis (gráficos) */
+.dash-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.dash-panel {
+  background: #fff;
+  border: 1px solid var(--panel-border);
+  border-radius: 1rem;
+  box-shadow: var(--panel-shadow);
+  padding: 1.25rem 1.35rem 1.4rem;
+}
+.dash-panel--wide { grid-column: span 2; }
+.dash-panel--today {
+  display: flex;
+  flex-direction: column;
+}
+.dash-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.dash-panel__title {
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--ink-1);
+  margin: 0;
+}
+.dash-panel__badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2a78d6;
+  background: #eaf2fc;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+}
+.chart-box { position: relative; height: 240px; }
+.chart-box--lg { height: 280px; }
+
+/* destaque "hoje" */
+.today {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0 1rem;
+}
+.today__value {
+  font-size: 3.4rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #2a78d6;
+}
+.today__label {
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  max-width: 12rem;
+}
+.dash-empty {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 2rem 0;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .dash-panel--wide { grid-column: auto; }
+}

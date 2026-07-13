@@ -4,6 +4,7 @@
 {% block content %}
 <h1>{{ 'Editar' if livro else 'Novo' }} Livro</h1>
 <form method="post" action="">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="mb-3">
     <label for="codigo" class="form-label">Código {% if not livro %}<small class="text-muted">(sugerido automaticamente — edite se precisar)</small>{% endif %}</label>
     <input type="text" class="form-control" id="codigo" name="codigo" value="{{ livro.codigo if livro else (sugestao_codigo or '') }}" {{ 'readonly' if livro else '' }} required>

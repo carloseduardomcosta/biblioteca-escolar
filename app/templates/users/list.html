@@ -27,6 +27,7 @@
         </a>
         <form method="post" action="{{ url_for('users.excluir_usuario', uid=u.id) }}"
               style="display:inline" onsubmit="return confirm('Excluir usuário?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-sm btn-danger">
             <i class="fa-solid fa-trash"></i>
           </button>

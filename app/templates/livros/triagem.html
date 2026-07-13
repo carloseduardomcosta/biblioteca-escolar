@@ -13,6 +13,7 @@
   <a href="{{ url_for('livros.listar_livros') }}" class="btn btn-secondary">Voltar</a>
 {% else %}
 <form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
     <span class="fw-bold">Marcar todos como:</span>
     <button type="button" class="btn btn-sm btn-success" onclick="marcarTodos('emprestavel')">🟢 Levar pra casa</button>

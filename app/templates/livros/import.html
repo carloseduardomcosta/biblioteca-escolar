@@ -9,6 +9,7 @@
   Acentos são preservados; códigos repetidos são ignorados automaticamente.
 </p>
 <form action="{{ url_for('livros.importar_livros') }}" method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="mb-3">
     <a href="{{ url_for('livros.download_livros_template') }}" class="btn btn-info mb-3">
       ⬇️ Baixar modelo (Excel)
