@@ -1,6 +1,6 @@
 # 🗺️ Roadmap — Biblioteca Escolar
 
-Sistema doado à **EEB Teófilo Nolasco de Almeida** (1º tenant). Modelo: **SaaS multi-escola** no servidor do Carlos; escola acessa por navegador; PC da biblioteca é Windows (só cliente + leitor USB).
+Sistema doado à **E.E.F Senador Francisco Benjamin Gallotti** (1º tenant). Modelo: **SaaS multi-escola** no servidor do Carlos; escola acessa por navegador; PC da biblioteca é Windows (só cliente + leitor USB).
 
 Legenda: ✅ pronto · 🔨 a fazer · 🕓 depois · ❓ decisão pendente
 

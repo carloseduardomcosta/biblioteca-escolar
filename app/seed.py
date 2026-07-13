@@ -4,7 +4,7 @@
 Idempotente — pode rodar quantas vezes quiser. Uso:
 
     docker exec -it biblioteca-app \
-        env ESCOLA_NOME="EEB Teófilo Nolasco de Almeida" \
+        env ESCOLA_NOME="E.E.F Senador Francisco Benjamin Gallotti" \
             ADMIN_USER=macedo ADMIN_PASSWORD='suaSenhaForte' \
         python seed.py
 """
@@ -19,7 +19,7 @@ from models.usuario import Usuario
 
 
 def main():
-    escola_nome = os.environ.get('ESCOLA_NOME', 'EEB Teófilo Nolasco de Almeida')
+    escola_nome = os.environ.get('ESCOLA_NOME', 'E.E.F Senador Francisco Benjamin Gallotti')
     admin_user  = os.environ.get('ADMIN_USER', 'admin')
     admin_pass  = os.environ.get('ADMIN_PASSWORD', 'trocar123')
 

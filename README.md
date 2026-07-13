@@ -5,7 +5,7 @@ Sistema web de gestão de biblioteca escolar — cadastro de **livros** e **alun
 indicadores e **multi-escola** (multi-tenant). Feito para ser simples de operar
 por quem cuida da biblioteca no dia a dia.
 
-Projeto sem fins lucrativos, em uso na **EEB Teófilo Nolasco de Almeida**.
+Projeto sem fins lucrativos, em uso na **E.E.F Senador Francisco Benjamin Gallotti**.
 
 ---
 
