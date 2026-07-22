@@ -18,3 +18,7 @@ protheus_data/   # caso use algum volume para Prometheus
 # Barcodes gerados em runtime (artefatos regeneráveis a partir do código)
 app/static/barcodes/*.png
 !app/static/barcodes/.gitkeep
+
+# Backups locais (dump do banco + barcodes) — gerados pelo cron, não versionar
+backups/*.sql.gz
+backups/*.tar.gz

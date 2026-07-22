@@ -245,15 +245,35 @@ def editar_aluno(codigo):
 
 @bp.route('/<string:codigo>/deletar', methods=['POST'])
 def deletar_aluno(codigo):
-    """Deleta um aluno pelo código"""
+    """Deleta um aluno pelo código.
+
+    Bloqueia se houver empréstimo em aberto: excluir a pessoa cascateia a
+    exclusão do empréstimo (models/aluno.py, cascade delete-orphan), mas o
+    `livro.situacao` não é atualizado por esse caminho — o livro ficaria
+    preso como "emprestado" sem ninguém com ele.
+    """
     with SessionLocal() as db:
         aluno = db.query(Aluno).filter_by(codigo=codigo, escola_id=_escola_id()).first()
-        if aluno:
-            db.delete(aluno)
-            db.commit()
-            flash('Aluno deletado com sucesso!', 'success')
-        else:
+        if not aluno:
             flash('Aluno não encontrado.', 'warning')
+            return redirect(url_for('alunos.listar_alunos'))
+
+        em_aberto = (
+            db.query(Emprestimo)
+              .filter_by(aluno_id=aluno.id, data_devolucao=None)
+              .count()
+        )
+        if em_aberto:
+            flash(
+                f'Não é possível excluir "{aluno.nome}": há {em_aberto} livro(s) '
+                'emprestado(s) em aberto. Registre a devolução antes de excluir.',
+                'danger'
+            )
+            return redirect(url_for('alunos.listar_alunos'))
+
+        db.delete(aluno)
+        db.commit()
+        flash('Aluno deletado com sucesso!', 'success')
     return redirect(url_for('alunos.listar_alunos'))
 
 
