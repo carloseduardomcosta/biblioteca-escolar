@@ -16,6 +16,7 @@ from models.usuario import Usuario
 from flask import Flask, render_template, redirect, url_for, request
 from models.acesso import Acesso
 from models.log_atividade import LogAtividade
+from models.reserva_codigo import ReservaCodigo
 from routes.users import bp as users_bp
 from routes.auditoria import bp as auditoria_bp
 from flask_wtf import CSRFProtect

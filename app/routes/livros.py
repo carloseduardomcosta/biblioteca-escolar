@@ -2,10 +2,13 @@ from flask import Blueprint, request, render_template, redirect, url_for, flash,
 from flask_login import current_user
 from werkzeug.security import check_password_hash
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime, timedelta
 from config.settings import SessionLocal
 from models.aluno import Aluno
 from models.livro import Livro
 from models.emprestimo import Emprestimo
+from models.reserva_codigo import ReservaCodigo
 from utils.barcode import gerar_barcode
 from utils.planilha import linhas_planilha, parse_ano
 from utils.auditoria import registrar
@@ -62,17 +65,59 @@ def _parse_espessura(valor, default='medio'):
     return v if v in ('fininho', 'fino', 'medio', 'grosso') else default
 
 
+# Quanto tempo uma reserva de código (form "Novo livro" aberto, ainda não
+# salvo) vale. Passado isso, o código volta a ficar livre para sugestão —
+# cobre o caso de alguém abrir o formulário e nunca terminar de salvar.
+RESERVA_VALIDADE = timedelta(minutes=20)
+
+
+def _limpar_reservas_expiradas(db, escola_id):
+    """Remove reservas velhas desta escola (autolimpeza, sem cron)."""
+    limite = datetime.utcnow() - RESERVA_VALIDADE
+    db.query(ReservaCodigo).filter(
+        ReservaCodigo.escola_id == escola_id,
+        ReservaCodigo.criado_em < limite,
+    ).delete(synchronize_session=False)
+
+
 def _codigos_numericos(db, escola_id):
-    """Conjunto dos códigos numéricos já usados + largura do zero-padding."""
+    """Conjunto dos códigos numéricos já usados (cadastrados OU reservados
+    por um formulário ainda aberto) + largura do zero-padding."""
+    _limpar_reservas_expiradas(db, escola_id)
     codigos = db.query(Livro.codigo).filter_by(escola_id=escola_id).all()
+    reservados = db.query(ReservaCodigo.codigo).filter_by(escola_id=escola_id).all()
     usados = set()
     largura = 4
-    for (cod,) in codigos:
+    for (cod,) in list(codigos) + list(reservados):
         c = (cod or '').strip()
         if c.isdigit():
             usados.add(int(c))
             largura = max(largura, len(c))
     return usados, largura
+
+
+def _reservar_codigo(db, escola_id):
+    """Sugere e RESERVA um código livre (grava na hora, dentro da mesma
+    chamada) — assim, se outra pessoa abrir o formulário logo em seguida,
+    já vê um código diferente. Tenta algumas vezes para o raríssimo caso de
+    duas requisições colidindo no mesmo instante (o UNIQUE da tabela de
+    reserva garante que só uma vence)."""
+    for _ in range(5):
+        codigo = _proximo_codigo(db, escola_id)
+        try:
+            db.add(ReservaCodigo(escola_id=escola_id, codigo=codigo))
+            db.commit()
+            return codigo
+        except IntegrityError:
+            db.rollback()
+    # não deveria acontecer, mas não trava o cadastro por causa da reserva
+    return codigo
+
+
+def _liberar_reserva(db, escola_id, codigo):
+    """Libera a reserva de um código depois que o livro foi salvo de fato
+    (ou quando o código sugerido acabou não sendo o usado)."""
+    db.query(ReservaCodigo).filter_by(escola_id=escola_id, codigo=codigo).delete()
 
 
 def _proximos_codigos(db, escola_id, n=1):
@@ -279,6 +324,9 @@ def novo_livro():
     if request.method == 'POST':
         codigo = request.form['codigo'].strip()
         titulo = request.form['titulo'].strip()
+        # código que este formulário reservou ao ser aberto (pode ser
+        # diferente do "codigo" se a pessoa editou o campo manualmente).
+        codigo_reservado = request.form.get('codigo_reservado', '').strip()
         autor = request.form.get('autor', '').strip()
         ano = request.form.get('ano_publicacao', '').strip() or None
         categoria = request.form.get('categoria', '').strip()
@@ -292,6 +340,10 @@ def novo_livro():
 
         if not codigo or not titulo:
             flash('Código e título são obrigatórios.', 'warning')
+            if codigo_reservado:
+                with SessionLocal() as db:
+                    _liberar_reserva(db, _escola_id(), codigo_reservado)
+                    db.commit()
             return redirect(url_for('livros.novo_livro'))
 
         pasta = os.path.join(current_app.static_folder, 'barcodes')
@@ -336,11 +388,23 @@ def novo_livro():
             except Exception:
                 db.rollback()
                 flash('Erro ao criar livro(s). Verifique se algum código já existe.', 'danger')
+
+            # libera a reserva do código sugerido — seja porque foi usado
+            # (livro já existe na tabela livro) seja porque a pessoa digitou
+            # outro código à mão e não precisa mais dela.
+            if codigo_reservado:
+                _liberar_reserva(db, _escola_id(), codigo_reservado)
+            if codigo != codigo_reservado:
+                _liberar_reserva(db, _escola_id(), codigo)
+            db.commit()
         # fluxo de produção: volta pro formulário vazio (com o próximo código)
         return redirect(url_for('livros.novo_livro'))
 
     with SessionLocal() as db:
-        sugestao = _proximo_codigo(db, _escola_id())
+        # reserva JÁ AO ABRIR o formulário — se outra pessoa abrir "Novo
+        # livro" ao mesmo tempo, recebe um código diferente (evita duas
+        # pessoas cadastrando com o mesmo número na correria da biblioteca).
+        sugestao = _reservar_codigo(db, _escola_id())
     return render_template('livros/form.html', livro=None, sugestao_codigo=sugestao)
 
 

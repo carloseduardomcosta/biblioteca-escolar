@@ -19,6 +19,7 @@ from models.livro import Livro
 from models.emprestimo import Emprestimo
 from models.acesso import Acesso
 from models.log_atividade import LogAtividade
+from models.reserva_codigo import ReservaCodigo
 from app import create_app
 
 
