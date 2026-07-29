@@ -146,6 +146,24 @@ def test_listar_livros_filtro_politica(client, session):
     assert 'F001' in html and 'F002' not in html
 
 
+def test_desmarcar_etiquetas_volta_pra_pendente(client, session):
+    """Socorro pro caso de 'imprimiu mas marcou tudo sem sair de verdade'."""
+    l1 = _livro(session, 'IMP1', etiqueta_impressa=True)
+    l2 = _livro(session, 'IMP2', etiqueta_impressa=True)
+    resp = client.post('/livros/etiquetas/desmarcar', data={'codigos': ['IMP1', 'IMP2']})
+    assert resp.status_code == 302
+    session.expire_all()
+    assert session.query(Livro).filter_by(codigo='IMP1').one().etiqueta_impressa is False
+    assert session.query(Livro).filter_by(codigo='IMP2').one().etiqueta_impressa is False
+    log = session.query(LogAtividade).filter_by(acao='editar', entidade='livro').first()
+    assert log is not None and 'pendente' in log.descricao
+
+
+def test_desmarcar_etiquetas_sem_selecao(client, session):
+    resp = client.post('/livros/etiquetas/desmarcar', data={})
+    assert resp.status_code == 302  # não quebra, só avisa que nada foi selecionado
+
+
 def test_similares_encontra_titulo_parecido(client, session):
     _livro(session, 'S001', titulo='Harry Potter e a Pedra Filosofal')
     resp = client.get('/livros/similares?q=Harry Potter')

@@ -55,6 +55,7 @@ services:
       --error-logfile -
       --log-level info
       --workers 3
+      --timeout 120
       --bind 0.0.0.0:65000
       app:app
 

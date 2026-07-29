@@ -35,6 +35,12 @@
         </li>
         <li><hr class="dropdown-divider"></li>
         <li>
+          <button type="button" class="dropdown-item" onclick="desmarcarSelecionadas()"
+                  title="Use se a etiqueta foi marcada como impressa mas não saiu de verdade (PDF não abriu, etc.)">
+            ↩️ Marcar selecionadas como pendente
+          </button>
+        </li>
+        <li>
           <a class="dropdown-item text-muted" href="{{ url_for('livros.exportar_livros_pdf') }}"
              onclick="return confirm('Reimprimir as etiquetas de TODO o acervo?');">
             Reimprimir todas
@@ -199,16 +205,11 @@
 function toggleAll(cb){
   $('#livrosTable').DataTable().$('input.sel-livro').prop('checked', cb.checked);
 }
-// gera o PDF só das etiquetas marcadas (pega as marcadas de todas as páginas)
-function imprimirSelecionadas(){
-  var marcadas = $('#livrosTable').DataTable().$('input.sel-livro:checked');
-  if (marcadas.length === 0) {
-    alert('Selecione ao menos uma etiqueta na coluna ✓.');
-    return;
-  }
+// monta e envia um form POST com os códigos marcados (pega de todas as páginas do DataTable)
+function _enviarComSelecionadas(action, marcadas){
   var form = document.createElement('form');
   form.method = 'post';
-  form.action = '{{ url_for("livros.etiquetas_selecionadas") }}';
+  form.action = action;
   // token CSRF (form gerado via JS não herda o campo oculto do template)
   var tok = document.createElement('input');
   tok.type = 'hidden'; tok.name = 'csrf_token';
@@ -221,6 +222,27 @@ function imprimirSelecionadas(){
   });
   document.body.appendChild(form);
   form.submit();
+}
+
+// gera o PDF só das etiquetas marcadas
+function imprimirSelecionadas(){
+  var marcadas = $('#livrosTable').DataTable().$('input.sel-livro:checked');
+  if (marcadas.length === 0) {
+    alert('Selecione ao menos uma etiqueta na coluna ✓.');
+    return;
+  }
+  _enviarComSelecionadas('{{ url_for("livros.etiquetas_selecionadas") }}', marcadas);
+}
+
+// socorro: volta as marcadas pra fila de pendentes (etiqueta não saiu de verdade)
+function desmarcarSelecionadas(){
+  var marcadas = $('#livrosTable').DataTable().$('input.sel-livro:checked');
+  if (marcadas.length === 0) {
+    alert('Selecione ao menos um livro na coluna ✓.');
+    return;
+  }
+  if (!confirm(marcadas.length + ' livro(s) vão voltar pra fila de "pendente de etiqueta". Confirma?')) return;
+  _enviarComSelecionadas('{{ url_for("livros.desmarcar_etiquetas") }}', marcadas);
 }
 
 // devolução rápida direto da lista de livros

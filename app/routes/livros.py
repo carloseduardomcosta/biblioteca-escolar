@@ -722,6 +722,9 @@ def etiquetas_pendentes():
         # marca como impressas
         for livro in pendentes:
             livro.etiqueta_impressa = True
+        registrar(db, 'editar', 'livro',
+                  f'Imprimiu {len(pendentes)} etiqueta(s) pendente(s) '
+                  f'(códigos: {", ".join(l.codigo for l in pendentes)}).')
         db.commit()
     return _responder_pdf(buffer, 'etiquetas-pendentes.pdf')
 
@@ -739,6 +742,7 @@ def exportar_livros_pdf():
         buffer = _pdf_etiquetas_dobraveis(livros, pasta)
         for livro in livros:
             livro.etiqueta_impressa = True
+        registrar(db, 'editar', 'livro', f'Reimprimiu as etiquetas de todo o acervo ({len(livros)} livro(s)).')
         db.commit()
     return _responder_pdf(buffer, 'etiquetas-todas.pdf')
 
@@ -763,5 +767,38 @@ def etiquetas_selecionadas():
         buffer = _pdf_etiquetas_dobraveis(livros, pasta)
         for livro in livros:
             livro.etiqueta_impressa = True
+        registrar(db, 'editar', 'livro',
+                  f'Reimprimiu {len(livros)} etiqueta(s) selecionada(s) '
+                  f'(códigos: {", ".join(l.codigo for l in livros)}).')
         db.commit()
     return _responder_pdf(buffer, 'etiquetas-selecionadas.pdf')
+
+
+@bp.route('/etiquetas/desmarcar', methods=['POST'])
+def desmarcar_etiquetas():
+    """Volta livro(s) pra fila de PENDENTES (etiqueta_impressa=False).
+
+    Existe pra socorrer quando "Imprimir pendentes"/"selecionadas" marca como
+    impresso mas a etiqueta não saiu de verdade (PDF não abriu no navegador,
+    conexão caiu no meio, etc.) — sem isso, a única saída era reimprimir
+    livro por livro manualmente, já que a fila de pendentes fica vazia."""
+    codigos = [c.strip() for c in request.form.getlist('codigos') if c.strip()]
+    if not codigos:
+        flash('Selecione ao menos um livro pra marcar como pendente de novo.', 'warning')
+        return redirect(url_for('livros.listar_livros'))
+    with SessionLocal() as db:
+        livros = (db.query(Livro)
+                    .filter(Livro.escola_id == _escola_id(), Livro.codigo.in_(codigos))
+                    .all())
+        if not livros:
+            flash('Nenhum livro encontrado para a seleção.', 'warning')
+            return redirect(url_for('livros.listar_livros'))
+        for livro in livros:
+            livro.etiqueta_impressa = False
+        registrar(db, 'editar', 'livro',
+                  f'Marcou {len(livros)} etiqueta(s) como pendente novamente '
+                  f'(códigos: {", ".join(sorted(l.codigo for l in livros))}).')
+        db.commit()
+        qtd = len(livros)
+    flash(f'↩️ {qtd} etiqueta(s) voltaram pra fila de pendentes.', 'success')
+    return redirect(url_for('livros.listar_livros'))
