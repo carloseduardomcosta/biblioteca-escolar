@@ -14,9 +14,11 @@ Projeto sem fins lucrativos, em uso na **E.E.F Senador Francisco Benjamin Gallot
 - **Dashboard** com indicadores (livros, alunos, empréstimos ativos, atrasos) e gráficos.
 - **Livros**: cadastro, edição, importação em massa (Excel/CSV), código de barras automático,
   **pesquisa avançada** (código, título, autor, categoria, ano de/até, grupo, espessura, situação
-  e status da etiqueta), **exemplares repetidos** (cria N cópias com sufixo "- 1", "- 2"…, no
-  cadastro ou na edição) e **alerta de títulos parecidos** ao digitar (evita duplicatas). A
-  numeração **reaproveita os vãos** deixados por exclusões.
+  e status da etiqueta), **exemplares repetidos** (cria N cópias com o **mesmo título** — o código
+  já distingue cada exemplar —, no cadastro ou na edição) e **alerta de títulos parecidos** ao
+  digitar (evita duplicatas). A numeração **reaproveita os vãos** deixados por exclusões, e o
+  código sugerido ao abrir "Novo livro" já fica **reservado na hora** (evita duas pessoas
+  cadastrando ao mesmo tempo caírem no mesmo número).
 - **Pessoas (alunos e professores)**: cadastro e importação em massa numa única central
   (`/alunos/listar`), com **filtro por tipo** e marcação Aluno/Professor. O código é a
   **matrícula** (o mesmo número do cartão da merenda), lida pelo bipador.
@@ -38,6 +40,9 @@ Projeto sem fins lucrativos, em uso na **E.E.F Senador Francisco Benjamin Gallot
   milhares de livros do zero (veja abaixo).
 - **Multi-escola (multi-tenant)**: cada escola só enxerga seus próprios dados.
 - **Papel de administrador**: só admin gerencia usuários.
+- **Auditoria/Logs** (`/auditoria`, **só admin**): quem cadastrou/editou/excluiu o quê e quando
+  (livros, pessoas, usuários, empréstimos), com filtros por usuário/ação/entidade/data, e
+  histórico de acessos (login/logout, sucesso/falha, IP) em `/auditoria/acessos`.
 
 ## 🧱 Stack
 
@@ -132,7 +137,10 @@ O tamanho total da etiqueta é fixo; só a distância entre o barcode e a bolinh
 muda conforme a espessura.
 
 **Impressão**: **🏷️ Imprimir etiquetas pendentes** (lote da fila), **Reimprimir todas**, ou
-**🖨️ Imprimir selecionadas** (marque na lista só os livros que quer reimprimir).
+**🖨️ Imprimir selecionadas** (marque na lista só os livros que quer reimprimir). Se o PDF não
+abrir de verdade no navegador mas o sistema já marcou como impresso (fila zerou sem a etiqueta
+ter saído), use **↩️ Marcar selecionadas como pendente** — devolve os livros marcados pra fila,
+sem precisar reimprimir um por um.
 
 ## 🌐 Publicação (proxy reverso)
 
@@ -144,21 +152,41 @@ recomenda-se **restringir por IP** (rede da escola/VPN) ou usar uma VPN.
 
 - **CSRF** habilitado em todos os POST (Flask-WTF `CSRFProtect`); forms enviam token oculto e
   as chamadas AJAX enviam o header `X-CSRFToken` (injetado no `base.html`).
-- **Anti-brute-force no login**: no máx. 5 tentativas erradas **por conta** em 15 min (um login
-  bem-sucedido zera). É por conta, não por IP, porque a app roda atrás de proxy compartilhado.
+- **Anti-brute-force no login**, duas camadas: no máx. **5 tentativas erradas por conta** em
+  15 min (um login bem-sucedido zera), e uma camada extra **por IP** (20 falhas/15min,
+  espalhadas entre contas — pega credential-stuffing) sem travar a escola inteira atrás do
+  mesmo IP/NAT.
 - **Sem open redirect**: o `?next=` do login só aceita caminho local.
-- **`ProxyFix` (Cloudflare/nginx)**: usa `CF-Connecting-IP` para registrar o IP real do cliente
-  no log de acessos e reconhecer HTTPS.
+- **`CloudflareProxyFix`**: usa `CF-Connecting-IP`/`X-Forwarded-For` para registrar o IP real do
+  cliente (log de acessos e rate-limit por IP) e reconhecer HTTPS.
 - Cadastro de usuário só na área administrativa (logado); sem cadastro público.
 - Cookies de sessão `Secure` + `HttpOnly` + `SameSite=Lax`.
 - Senhas com hash (werkzeug/scrypt). MySQL não exposto para fora.
 - Exclusão de livro protegida: **página de confirmação dedicada + senha do usuário logado**.
+- **Auditoria completa** (ver acima) de tudo que é criado/editado/excluído, restrita a admin.
 - **Nunca** versione o `.env` (contém senhas e chaves).
+
+## 💾 Backups
+
+`infra/backup.sh` (cron semanal, domingo 4h15) gera dump do banco + arquivos de código de
+barras, guarda localmente em `backups/` (retenção 90 dias) **e** envia uma cópia para o Google
+Drive via `rclone` (remote `gdrive-backup`, retenção remota igual) — protege contra falha do
+próprio servidor, não só do banco. Sem `rclone` configurado, o script segue funcionando só com
+a cópia local (aviso no log, não quebra).
+
+## 🩺 Healthcheck
+
+`docker-compose.yml` define healthcheck para os dois serviços — `db` via `mysqladmin ping`,
+`web` via `GET /auth/login` (não exige sessão) — e o `web` só sobe depois que o `db` estiver
+saudável. `docker ps` mostra `(healthy)`/`(unhealthy)` de cada container.
 
 ## 🧪 Testes e migrações
 
 - Testes com **pytest** em `app/tests/` (SQLite isolado por teste; cobre empréstimo/devolução/
-  renovação, política por papel, prazos, lockout e open-redirect): `python -m pytest tests/`.
+  renovação, política por papel, prazos, lockout por conta e por IP, open-redirect, CRUD de
+  livros/pessoas/usuários, reserva de código, isolamento multi-tenant e auditoria) — roda dentro
+  do container, que já tem tudo pinado no `requirements.txt`:
+  `docker exec -w /app biblioteca-app python -m pytest tests/`.
 - **Migrações** de schema (não geridas por `create_all`) ficam em `mysql/migrations/` com um
   guard idempotente — ex.: `001_add_tipo_pessoa.sql` (coluna `tipo` em `aluno`).
 
@@ -172,13 +200,16 @@ Acompanhe o andamento e as próximas etapas em [`ROADMAP.md`](./ROADMAP.md).
 app/
 ├── app.py            # fábrica da aplicação + dashboard
 ├── config/           # engine/sessão SQLAlchemy
-├── models/           # escola, aluno, livro, emprestimo, usuario, acesso
-├── routes/           # auth, alunos, livros, emprestimos, users
+├── models/           # escola, aluno, livro, emprestimo, usuario, acesso,
+│                     # log_atividade (auditoria), reserva_codigo
+├── routes/           # auth, alunos, livros, emprestimos, users, auditoria
 ├── templates/        # HTML (Jinja2)
 ├── static/           # css, código de barras, planilhas-modelo
-├── utils/            # geração de barcode e leitura de planilha
+├── utils/            # barcode, planilha, auditoria (registrar log)
+├── tests/            # pytest (livros, alunos, users, auditoria, auth, emprestimos)
 └── seed.py           # cria escola + admin
-docker-compose.yml    # aplicação + MySQL
+infra/backup.sh       # backup semanal (banco + barcodes), local + Google Drive
+docker-compose.yml    # aplicação + MySQL (com healthcheck)
 ```
 
 ---

@@ -38,7 +38,7 @@
   <div class="wrap">
     <div class="topo">📚 Sistema Biblioteca Escolar · guia de uso</div>
     <div class="card">
-<h1 id="guia-de-uso-biblioteca-escolar">📖 Guia de Uso — Biblioteca Escolar</h1>
+<h1>📖 Guia de Uso — Biblioteca Escolar</h1>
 <p>Guia prático do dia a dia: como catalogar o acervo, imprimir etiquetas e emprestar livros.
 Feito para quem opera a biblioteca — sem termos técnicos.</p>
 <ul>
@@ -46,52 +46,62 @@ Feito para quem opera a biblioteca — sem termos técnicos.</p>
 <li><strong>Exemplo de etiqueta (PDF):</strong> https://biblioteca.cemctec.com.br/static/exemplo-etiquetas.pdf</li>
 </ul>
 <hr />
-<h2 id="1-entrar-no-sistema">🔑 1. Entrar no sistema</h2>
+<h2>🔑 1. Entrar no sistema</h2>
 <ol>
 <li>Acesse <strong>biblioteca.cemctec.com.br</strong> no navegador.</li>
 <li>Entre com seu <strong>usuário</strong> e <strong>senha</strong>.</li>
 <li>Na primeira vez, troque a senha em <strong>Usuários</strong> (por segurança).</li>
 </ol>
 <hr />
-<h2 id="como-e-a-etiqueta-dobravel">🏷️ Como é a etiqueta (dobrável)</h2>
-<p>Cada etiqueta é impressa em <strong>papel A4 comum</strong>. Você <strong>recorta na borda</strong> e <strong>dobra no vinco</strong>
-(a linha tracejada do meio). Aí ela fica com duas faces:</p>
-<pre><code>        FRENTE (fica à vista)     ┊      VERSO (atrás)
-   ┌──────────────────────────┊──────────────────────────┐
-   │                          ┊   ║║█║██║█║║█║██║║█║█║     │  ← bipar aqui
-   │          ╭──────╮        ┊        0 0 0 1            │  (número também
-   │          │  ●   │ ~1,5cm  ┊                          │   embaixo do código)
-   │          │      │ na cor  ┊   Dom Casmurro           │  ← título
-   │          ╰──────╯        ┊   Romance                │  ← categoria
-   │            0001          ┊                          │  ← número do livro
-   └──────────────────────────┊──────────────────────────┘
-          ✂ recorta na borda   ↑ dobra no vinco
-
-   Bolinha:  🟢 pode levar pra casa    🟡 só na biblioteca    🔴 professor
+<h2>🏷️ Como é a etiqueta (envolve a lombada)</h2>
+<p>Impressa em <strong>papel A4 comum</strong> — você <strong>recorta na borda</strong>. A etiqueta <strong>dá a volta pela
+lombada</strong>: uma aba fica na <strong>capa</strong>, o meio na <strong>lombada</strong> e a outra aba na <strong>contracapa</strong>.</p>
+<pre><code>       CAPA            LOMBADA          CONTRACAPA
+  ┌───────────────┬──────────────┬────────────────┐
+  │ ║█║██║█║║█║██  │  B    E      │                │
+  │   0 0 0 1      │  i    s      │       ●        │  ← bolinha (cor do grupo)
+  │               │  b    c ...  │                │
+  └───────────────┴──────────────┴────────────────┘
+    código de        &quot;Biblioteca      🟢 leva pra casa
+    barras +         Escola Gallotti&quot;  🟡 só na biblioteca
+    número           (na vertical)     🔴 professor
 </code></pre>
 <ul>
-<li><strong>Frente:</strong> a bolinha na cor do grupo + o número do livro (pra achar na estante).</li>
-<li><strong>Verso:</strong> o código de barras (pra bipar) + título + categoria.</li>
+<li><strong>Capa:</strong> o <strong>código de barras</strong> (pra bipar) com o <strong>número</strong> embaixo.</li>
+<li><strong>Lombada:</strong> o nome <strong>"Biblioteca Escola Gallotti"</strong> na vertical. A <strong>largura acompanha a
+  espessura do livro</strong> — você escolhe <strong>Fininho / Fino / Médio / Grosso</strong> no cadastro.</li>
+<li><strong>Contracapa:</strong> a <strong>bolinha</strong> na cor do grupo (pra achar o livro na estante).</li>
 </ul>
+<blockquote>
+<p>Cabem <strong>33 etiquetas por folha A4</strong> (3 colunas).</p>
+</blockquote>
 <hr />
-<h2 id="2-catalogar-o-acervo-fluxo-de-producao">📥 2. Catalogar o acervo (fluxo de produção)</h2>
+<h2>📥 2. Catalogar o acervo (fluxo de produção)</h2>
 <p>Ideal para organizar muitos livros do zero: <strong>pega o livro → dá entrada → imprime em lote → cola</strong>.</p>
-<h3 id="dar-entrada-em-cada-livro">Dar entrada em cada livro</h3>
+<h3>Dar entrada em cada livro</h3>
 <ol>
 <li>Menu <strong>Livros → ➕ Novo Livro</strong>.</li>
 <li>O <strong>código já vem preenchido</strong> automaticamente (<code>0001</code>, <code>0002</code>, <code>0003</code>…). <strong>Deixe como está.</strong></li>
-<li>Preencha <strong>Título</strong>, <strong>Autor</strong> e <strong>Categoria</strong> (gênero).</li>
+<li>Preencha <strong>Título</strong>, <strong>Autor</strong> e <strong>Categoria</strong> (gênero).
+   - 💡 Ao digitar o título, se já existir algo <strong>parecido</strong>, o sistema <strong>avisa</strong> — assim você
+     confere se não é duplicado antes de salvar.</li>
 <li>Escolha o <strong>Grupo (bolinha)</strong>:
    - 🟢 <strong>Pode levar pra casa</strong> — empréstimo normal
    - 🟡 <strong>Só na biblioteca</strong> — consulta local (não empresta)
    - 🔴 <strong>Não empresta</strong> — livro de professor / restrito</li>
+<li>Escolha a <strong>Espessura</strong> da lombada (<strong>Fininho / Fino / Médio / Grosso</strong>) — isso ajusta a
+   faixa do meio da etiqueta ao tamanho do livro.</li>
+<li><strong>Tem vários exemplares iguais?</strong> No campo <em>"Existem exemplares iguais? Quantos?"</em> coloque a
+   quantidade. O sistema cria todos de uma vez, <strong>com o mesmo título</strong> e um <strong>código diferente</strong>
+   pra cada (o código já distingue os exemplares). (Deixe <strong>1</strong> se for único.)</li>
 <li>Clique em <strong>Salvar</strong>. O formulário volta vazio, já com o próximo número.</li>
 <li>Pegue o próximo livro e repita. <strong>Vá empilhando os livros já cadastrados, na ordem.</strong></li>
 </ol>
 <blockquote>
-<p>💡 O sistema cuida da numeração — você não precisa pensar no número nem anotar nada antes.</p>
+<p>💡 O sistema cuida da numeração — você não precisa pensar no número nem anotar nada antes.
+Se um código foi excluído e ficou um "buraco", o próximo cadastro <strong>reaproveita</strong> esse número.</p>
 </blockquote>
-<h3 id="imprimir-as-etiquetas-em-lote">Imprimir as etiquetas em lote</h3>
+<h3>Imprimir as etiquetas em lote</h3>
 <ol>
 <li>Quando juntar um bom número (o que encher a folha, ~10 a 14 livros), volte em <strong>Livros</strong>.</li>
 <li>Clique em <strong>🏷️ Imprimir etiquetas pendentes</strong> (mostra quantas estão pendentes).</li>
@@ -101,31 +111,54 @@ Feito para quem opera a biblioteca — sem termos técnicos.</p>
 <li>O contador de pendentes zera. Siga para o próximo lote.</li>
 </ol>
 <blockquote>
-<p>Precisa reimprimir tudo (ex: refez uma etiqueta)? Use <strong>Reimprimir todas</strong>.</p>
+<p>Precisa refazer só algumas? Marque-as na lista e use <strong>🖨️ Imprimir selecionadas</strong>.
+Precisa reimprimir o acervo inteiro? Use <strong>Reimprimir todas</strong>.
+O PDF abriu em branco/deu erro mas o contador de pendentes já zerou? Marque os livros que não
+saíram de verdade e use <strong>↩️ Marcar selecionadas como pendente</strong> — eles voltam pra fila, sem
+precisar reimprimir um por um.</p>
 </blockquote>
 <hr />
-<h2 id="3-cadastrar-alunos">👨‍🎓 3. Cadastrar alunos</h2>
-<p>O código do aluno é a <strong>matrícula</strong> (o mesmo número do <strong>cartão da merenda</strong>) — é o que o
-leitor vai bipar para identificar o aluno.</p>
+<h2>👥 3. Cadastrar pessoas (alunos e professores)</h2>
+<p>O menu <strong>Pessoas</strong> é a central de cadastro. O código é a <strong>matrícula</strong> (o mesmo número do
+<strong>cartão da merenda</strong>) — é o que o leitor bipa para identificar a pessoa.</p>
 <ul>
-<li><strong>Um a um:</strong> Menu <strong>Alunos → Novo Aluno</strong>.</li>
-<li><strong>Em massa:</strong> <strong>Alunos → Importar</strong> → baixe o modelo (Excel), preencha <code>codigo</code> (matrícula),
-  <code>nome</code>, <code>turma</code> e envie.</li>
+<li><strong>Uma a uma:</strong> <strong>Pessoas → Nova pessoa</strong>. Escolha o <strong>tipo</strong>: <strong>Aluno</strong> ou <strong>Professor</strong>
+  (a Turma só aparece para aluno).</li>
+<li><strong>Em massa:</strong> <strong>Pessoas → Importar</strong> → baixe o modelo (Excel), preencha <code>codigo</code> (matrícula),
+  <code>nome</code>, <code>turma</code> e, opcionalmente, <code>tipo</code> (<code>aluno</code>/<code>professor</code>; em branco vira aluno).</li>
+<li>Use os filtros <strong>Alunos / Professores / Todos</strong> no topo da lista.</li>
 </ul>
+<blockquote>
+<p><strong>Por que separar professor?</strong> É a regra de quem pode levar cada livro:
+<strong>aluno só leva 🟢</strong>; <strong>professor leva qualquer livro</strong> (🟢🟡🔴).</p>
+</blockquote>
 <hr />
-<h2 id="4-emprestar-e-devolver">🔄 4. Emprestar e devolver</h2>
-<ul>
-<li><strong>Emprestar:</strong> Menu <strong>Empréstimos → Scan</strong>. Bipe o <strong>cartão do aluno</strong> e depois o
-  <strong>código de barras do livro</strong>. O sistema registra o empréstimo.</li>
-<li>Livros 🟡 e 🔴 <strong>não podem ser emprestados</strong> — o sistema avisa e bloqueia.</li>
-<li><strong>Devolver:</strong> bipe o código de barras do livro na tela de devolução.</li>
-</ul>
+<h2>🔄 4. Balcão — emprestar, devolver e renovar</h2>
+<p>Tudo num lugar só: <strong>Balcão</strong> (no menu, ou <strong>Empréstimos → Balcão</strong>). O sistema <strong>descobre
+sozinho</strong> se é empréstimo ou devolução pelo estado do livro.</p>
+<p><strong>Emprestar</strong>
+1. Bipe/digite o <strong>livro</strong>. Se estiver <strong>disponível</strong>, o balcão pede a <strong>pessoa</strong>.
+2. Bipe/digite a <strong>pessoa</strong>. Confira o prazo (<strong>7 dias</strong> para aluno, <strong>30</strong> para professor —
+   dá pra mudar a data) e clique em <strong>Registrar empréstimo</strong>.
+   - Se um <strong>aluno</strong> tentar um livro 🟡/🔴, o sistema <strong>avisa e bloqueia</strong> (só professor leva).
+   - Se a pessoa tiver livro <strong>em atraso</strong>, aparece um aviso — mas o empréstimo é permitido.</p>
+<p><strong>Devolver</strong> — de três jeitos:
+- <strong>Pelo livro:</strong> bipe o livro no balcão; estando emprestado, clique em <strong>Registrar devolução</strong>.
+- <strong>Pela pessoa:</strong> busque a pessoa (no balcão ou em <strong>Pessoas</strong>) e clique em <strong>Devolver</strong> no
+  livro que ela tem (ou <strong>Devolver todos</strong>).
+- <strong>Pela lista:</strong> em <strong>Empréstimos</strong>, use o filtro <strong>Ativos/Atrasados</strong> e clique em <strong>Devolver</strong>
+  na linha.</p>
+<p><strong>Renovar</strong> — para estender o prazo sem devolver: botão <strong>Renovar</strong> (no balcão, na lista de
+empréstimos ou no painel da pessoa).</p>
+<blockquote>
+<p>O menu <strong>Empréstimos</strong> mostra um <strong>badge vermelho</strong> com a quantidade de atrasados.</p>
+</blockquote>
 <hr />
-<h2 id="5-teste-piloto-faca-antes-de-catalogar-tudo">✅ 5. Teste piloto (faça antes de catalogar tudo)</h2>
+<h2>✅ 5. Teste piloto (faça antes de catalogar tudo)</h2>
 <p>Antes de encarar centenas de livros, <strong>cataloge só uns 10</strong> e valide:</p>
 <ol>
 <li>Dê entrada nos 10, imprima o lote, recorte, dobre e cole.</li>
-<li>Em <strong>Empréstimos → Scan</strong>, <strong>bipe o código de barras</strong> de um livro etiquetado → deve puxar o livro certo.</li>
+<li>No <strong>Balcão</strong>, <strong>bipe o código de barras</strong> de um livro etiquetado → deve puxar o livro certo.</li>
 <li>Confira se a <strong>bolinha e o número</strong> estão legíveis a um braço de distância.</li>
 <li>Se o leitor não bipar bem no papel comum, ou o tamanho não agradar, é rápido ajustar.</li>
 </ol>
@@ -134,12 +167,17 @@ leitor vai bipar para identificar o aluno.</p>
 você refez só 10 — não centenas. 😉</p>
 </blockquote>
 <hr />
-<h2 id="duvidas-rapidas">❓ Dúvidas rápidas</h2>
+<h2>❓ Dúvidas rápidas</h2>
 <ul>
-<li><strong>Errei o grupo/título de um livro?</strong> Menu <strong>Livros</strong>, botão <strong>Editar</strong> na linha do livro.</li>
-<li><strong>Colei uma etiqueta torta / estragou?</strong> Edite nada — é só reimprimir: use <strong>Reimprimir todas</strong>
-  ou cadastre/edite e imprima pendentes.</li>
-<li><strong>Quantas etiquetas cabem na folha?</strong> Cerca de <strong>14 por folha A4</strong>.</li>
+<li><strong>Errei o grupo/título/espessura de um livro?</strong> Menu <strong>Livros</strong>, botão <strong>Editar</strong> na linha.</li>
+<li><strong>Preciso achar um livro?</strong> No topo de <strong>Livros</strong>, abra <strong>🔎 Pesquisa avançada</strong> e filtre por
+  título, autor, código, categoria, ano, grupo, espessura, situação ou status da etiqueta.</li>
+<li><strong>Colei uma etiqueta torta / estragou?</strong> É só reimprimir: <strong>marque</strong> o(s) livro(s) na lista e
+  clique em <strong>🖨️ Imprimir selecionadas</strong> (ou <strong>Reimprimir todas</strong> para o acervo inteiro).</li>
+<li><strong>Preciso excluir um livro?</strong> Botão <strong>Excluir</strong> → abre uma confirmação que <strong>pede a sua senha</strong>
+  (proteção contra exclusão acidental). Atenção: o número do livro excluído fica "vago" (mas o
+  próximo cadastro reaproveita esse número).</li>
+<li><strong>Quantas etiquetas cabem na folha?</strong> <strong>33 por folha A4</strong> (3 colunas).</li>
 <li><strong>Perdi a conta de qual livro etiquetar?</strong> A lista de <strong>Livros</strong> mostra a coluna <strong>Etiqueta</strong>
   (🟠 pendente / ✅ impressa) e o contador de pendentes no topo.</li>
 </ul>

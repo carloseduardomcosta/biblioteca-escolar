@@ -59,8 +59,8 @@ Ideal para organizar muitos livros do zero: **pega o livro → dá entrada → i
 5. Escolha a **Espessura** da lombada (**Fininho / Fino / Médio / Grosso**) — isso ajusta a
    faixa do meio da etiqueta ao tamanho do livro.
 6. **Tem vários exemplares iguais?** No campo *"Existem exemplares iguais? Quantos?"* coloque a
-   quantidade. O sistema cria todos de uma vez, numerando **"- 1", "- 2", "- 3"…** no título e
-   dando um código pra cada. (Deixe **1** se for único.)
+   quantidade. O sistema cria todos de uma vez, **com o mesmo título** e um **código diferente**
+   pra cada (o código já distingue os exemplares). (Deixe **1** se for único.)
 7. Clique em **Salvar**. O formulário volta vazio, já com o próximo número.
 8. Pegue o próximo livro e repita. **Vá empilhando os livros já cadastrados, na ordem.**
 
@@ -77,6 +77,9 @@ Ideal para organizar muitos livros do zero: **pega o livro → dá entrada → i
 
 > Precisa refazer só algumas? Marque-as na lista e use **🖨️ Imprimir selecionadas**.
 > Precisa reimprimir o acervo inteiro? Use **Reimprimir todas**.
+> O PDF abriu em branco/deu erro mas o contador de pendentes já zerou? Marque os livros que não
+> saíram de verdade e use **↩️ Marcar selecionadas como pendente** — eles voltam pra fila, sem
+> precisar reimprimir um por um.
 
 ---
 
