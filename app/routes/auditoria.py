@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
+from sqlalchemy import or_
 from config.settings import SessionLocal
 from models.log_atividade import LogAtividade
 from models.acesso import Acesso
@@ -106,7 +107,13 @@ def listar_acessos():
               .outerjoin(Usuario, Acesso.usuario_id == Usuario.id)
         )
         if current_user.escola_id is not None:
-            query = query.filter(Usuario.escola_id == current_user.escola_id)
+            # tentativa com usuário INEXISTENTE (usuario_id nulo) não tem
+            # escola pra comparar — mantém visível em vez de sumir do admin
+            # (senão nenhuma escola vê tentativa de login com username errado).
+            query = query.filter(or_(
+                Usuario.escola_id == current_user.escola_id,
+                Acesso.usuario_id.is_(None),
+            ))
         if f_usuario:
             query = query.filter(Usuario.username.ilike(f'%{f_usuario}%'))
         if f_status == 'sucesso':
