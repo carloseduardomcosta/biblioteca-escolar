@@ -146,6 +146,18 @@ def test_listar_livros_filtro_politica(client, session):
     assert 'F001' in html and 'F002' not in html
 
 
+def test_etiquetas_pendentes_forca_download(client, session):
+    """mimetype genérico (não application/pdf) de propósito: evita o
+    visualizador embutido do navegador, que às vezes falha silenciosamente
+    (tela em branco) em vez de baixar o arquivo."""
+    _livro(session, 'PDF1')
+    resp = client.get('/livros/etiquetas/pendentes')
+    assert resp.status_code == 200
+    assert resp.mimetype == 'application/octet-stream'
+    assert 'attachment' in resp.headers.get('Content-Disposition', '')
+    assert resp.data[:4] == b'%PDF'
+
+
 def test_desmarcar_etiquetas_volta_pra_pendente(client, session):
     """Socorro pro caso de 'imprimiu mas marcou tudo sem sair de verdade'."""
     l1 = _livro(session, 'IMP1', etiqueta_impressa=True)

@@ -668,7 +668,13 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
 
 
 def _responder_pdf(buffer, nome):
-    return send_file(buffer, as_attachment=True, download_name=nome, mimetype='application/pdf')
+    # mimetype genérico (não 'application/pdf') de propósito: alguns navegadores
+    # tentam abrir PDF "application/pdf" no visualizador embutido em vez de
+    # baixar, e esse visualizador às vezes falha silenciosamente (tela em
+    # branco) em vez de mostrar erro — com octet-stream o navegador SEMPRE
+    # baixa o arquivo (a extensão .pdf no nome já garante que abre certo depois).
+    return send_file(buffer, as_attachment=True, download_name=nome,
+                      mimetype='application/octet-stream')
 
 
 @bp.route('/triagem', methods=['GET', 'POST'])
