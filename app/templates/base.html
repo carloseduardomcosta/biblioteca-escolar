@@ -98,6 +98,13 @@
                     <i class="fa-solid fa-users me-2"></i>Gestão de Usuários
                   </a>
                 </li>
+                {% if current_user.is_admin %}
+                <li>
+                  <a class="dropdown-item" href="{{ url_for('auditoria.listar_atividades') }}">
+                    <i class="fa-solid fa-list-check me-2"></i>Auditoria / Logs
+                  </a>
+                </li>
+                {% endif %}
                 <li><hr class="dropdown-divider"></li>
                 <li>
                   <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">

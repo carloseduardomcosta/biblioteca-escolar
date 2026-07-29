@@ -7,6 +7,7 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from config.settings import SessionLocal
 from models.usuario import Usuario
+from utils.auditoria import registrar
 
 bp = Blueprint(
     'users',
@@ -61,6 +62,8 @@ def criar_usuario():
                     is_admin=is_admin_flag
                 )
                 db.add(u)
+                registrar(db, 'criar', 'usuario',
+                          f'Criou o usuário "{username}" ({"admin" if is_admin_flag else "bibliotecário"}).')
                 db.commit()
                 flash(f'Usuário "{username}" criado!', 'success')
                 return redirect(url_for('users.listar_usuarios'))
@@ -78,11 +81,16 @@ def editar_usuario(uid):
         if request.method == 'POST':
             new_username = request.form['username'].strip()
             new_password = request.form.get('password','').strip()
+            trocou_senha = bool(new_password)
             if new_username:
                 u.username = new_username
             if new_password:
                 u.password_hash = generate_password_hash(new_password)
             u.is_admin = request.form.get('is_admin') == 'on'
+            desc = f'Editou o usuário "{u.username}" (admin={u.is_admin}).'
+            if trocou_senha:
+                desc += ' Senha alterada.'
+            registrar(db, 'editar', 'usuario', desc)
             db.commit()
             flash('Usuário atualizado.', 'success')
             return redirect(url_for('users.listar_usuarios'))
@@ -95,6 +103,7 @@ def excluir_usuario(uid):
     with SessionLocal() as db:
         u = _scope(db.query(Usuario).filter(Usuario.id == uid)).first()
         if u:
+            registrar(db, 'excluir', 'usuario', f'Excluiu o usuário "{u.username}".')
             db.delete(u)
             db.commit()
             flash('Usuário excluído.', 'success')

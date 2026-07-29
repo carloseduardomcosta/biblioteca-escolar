@@ -14,7 +14,9 @@ from routes.auth import bp as auth_bp
 from models.usuario import Usuario
 from flask import Flask, render_template, redirect, url_for, request
 from models.acesso import Acesso
+from models.log_atividade import LogAtividade
 from routes.users import bp as users_bp
+from routes.auditoria import bp as auditoria_bp
 from flask_wtf import CSRFProtect
 import os
 from flask import send_from_directory
@@ -108,6 +110,7 @@ def create_app(testing=False):
     app.register_blueprint(livros_bp,     url_prefix='/livros')
     app.register_blueprint(emprestimos_bp,url_prefix='/emprestimos')
     app.register_blueprint(users_bp)
+    app.register_blueprint(auditoria_bp)
     
     
     @app.context_processor

@@ -8,6 +8,7 @@ from config.settings import SessionLocal
 from models.aluno import Aluno
 from utils.barcode import gerar_barcode
 from utils.planilha import linhas_planilha
+from utils.auditoria import registrar
 import os, csv, io
 from flask import current_app, send_file
 from reportlab.lib.pagesizes import A4
@@ -171,6 +172,9 @@ def importar_alunos():
             db.add(Aluno(escola_id=escola_id, codigo=codigo, nome=nome, tipo=tipo,
                          turma=turma, barcode_img=arquivo))
             created += 1
+        if created:
+            registrar(db, 'importar', 'aluno',
+                      f'Importou {created} pessoa(s) de {total} linha(s) da planilha.')
         db.commit()
 
     flash(f'✅ Importação: {total} linha(s) lida(s), {created} aluno(s) cadastrado(s).',
@@ -212,6 +216,8 @@ def novo_aluno():
         with SessionLocal() as db:
             db.add(aluno)
             try:
+                registrar(db, 'criar', 'aluno', f'Cadastrou "{nome}" ({aluno.tipo_label}).',
+                          entidade_codigo=codigo)
                 db.commit()
                 flash('Aluno criado com sucesso!', 'success')
             except Exception:
@@ -237,6 +243,8 @@ def editar_aluno(codigo):
         aluno.turma = '' if aluno.tipo == 'professor' else request.form.get('turma', aluno.turma).strip()
         with SessionLocal() as db:
             db.merge(aluno)
+            registrar(db, 'editar', 'aluno', f'Editou o cadastro de "{aluno.nome}".',
+                      entidade_codigo=codigo)
             db.commit()
             flash('Cadastro atualizado com sucesso!', 'success')
         return redirect(url_for('alunos.listar_alunos'))
@@ -271,6 +279,7 @@ def deletar_aluno(codigo):
             )
             return redirect(url_for('alunos.listar_alunos'))
 
+        registrar(db, 'excluir', 'aluno', f'Excluiu "{aluno.nome}".', entidade_codigo=codigo)
         db.delete(aluno)
         db.commit()
         flash('Aluno deletado com sucesso!', 'success')

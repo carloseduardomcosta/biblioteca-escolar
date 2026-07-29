@@ -8,6 +8,7 @@ from models.livro import Livro
 from models.emprestimo import Emprestimo
 from utils.barcode import gerar_barcode
 from utils.planilha import linhas_planilha, parse_ano
+from utils.auditoria import registrar
 import os, csv, io, re
 from reportlab.pdfgen import canvas
 from flask import current_app, send_file
@@ -183,6 +184,9 @@ def importar_livros():
                 barcode_img=arquivo
             ))
             created += 1
+        if created:
+            registrar(db, 'importar', 'livro',
+                      f'Importou {created} livro(s) de {total} linha(s) da planilha.')
         db.commit()
 
     # resumo detalhado (nada é perdido em silêncio)
@@ -314,6 +318,13 @@ def novo_livro():
             for cod_i, tit_i in itens:
                 _mk(cod_i, tit_i, db)
             try:
+                if qtd == 1:
+                    registrar(db, 'criar', 'livro', f'Cadastrou o livro "{titulo}".',
+                              entidade_codigo=itens[0][0])
+                else:
+                    cods = ', '.join(cod for cod, _ in itens)
+                    registrar(db, 'criar', 'livro',
+                              f'Cadastrou {qtd} exemplares de "{titulo}" (códigos: {cods}).')
                 db.commit()
                 if qtd == 1:
                     flash(f'📗 Livro "{titulo}" ({itens[0][0]}) cadastrado! '
@@ -407,6 +418,10 @@ def editar_livro(codigo):
                     ))
                     novos.append(cod)
             try:
+                desc = f'Editou o livro "{livro.titulo}".'
+                if novos:
+                    desc += f' Criou +{len(novos)} exemplares (códigos: {", ".join(novos)}).'
+                registrar(db, 'editar', 'livro', desc, entidade_codigo=codigo)
                 db.commit()
                 if novos:
                     flash(f'✅ Livro atualizado e +{len(novos)} exemplares criados '
@@ -442,6 +457,8 @@ def deletar_livro(codigo):
                 flash('Livro não encontrado.', 'warning')
                 return redirect(url_for('livros.listar_livros'))
             titulo = obj.titulo          # captura antes de excluir/fechar a sessão
+            registrar(db, 'excluir', 'livro', f'Excluiu o livro "{titulo}".',
+                      entidade_codigo=codigo)
             db.delete(obj)
             db.commit()
         flash(f'Livro {codigo} — "{titulo}" excluído por {current_user.username}.', 'success')

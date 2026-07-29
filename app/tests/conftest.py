@@ -18,6 +18,7 @@ from models.aluno import Aluno
 from models.livro import Livro
 from models.emprestimo import Emprestimo
 from models.acesso import Acesso
+from models.log_atividade import LogAtividade
 from app import create_app
 
 

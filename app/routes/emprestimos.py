@@ -11,6 +11,7 @@ from config.settings import SessionLocal
 from models.emprestimo import Emprestimo
 from models.aluno import Aluno
 from models.livro import Livro
+from utils.auditoria import registrar
 import logging
 
 
@@ -236,6 +237,10 @@ def criar_emprestimo():
             )
             livro.situacao = 'emprestado'
             db.add(emprestimo)
+            registrar(db, 'emprestar', 'emprestimo',
+                      f'Emprestou o livro "{livro.titulo}" ({livro.codigo}) para "{aluno.nome}", '
+                      f'devolução prevista em {prevista.strftime("%d/%m/%Y")}.',
+                      entidade_codigo=livro.codigo)
 
             # Atraso "só avisa": informa se a pessoa tem OUTROS livros vencidos.
             atrasos = _atrasos_da_pessoa(db, aluno.id, hoje)
@@ -283,6 +288,11 @@ def registrar_devolucao():
             for e in abertos:
                 e.data_devolucao = hoje
             livro.situacao = 'disponível'
+            portador = db.get(Aluno, abertos[0].aluno_id)
+            registrar(db, 'devolver', 'emprestimo',
+                      f'Registrou a devolução do livro "{livro.titulo}" ({livro.codigo})'
+                      + (f' por "{portador.nome}".' if portador else '.'),
+                      entidade_codigo=livro.codigo)
             db.commit()
             ids = [e.id for e in abertos]
 
@@ -330,6 +340,10 @@ def renovar_emprestimo():
                 nova = hoje + timedelta(days=dias)
 
             ativo.data_prevista_devolucao = nova
+            registrar(db, 'renovar', 'emprestimo',
+                      f'Renovou o livro "{livro.titulo}" ({livro.codigo}), '
+                      f'nova devolução em {nova.strftime("%d/%m/%Y")}.',
+                      entidade_codigo=livro.codigo)
             db.commit()
 
         return jsonify(message='Empréstimo renovado', nova_data=nova.isoformat()), 200
