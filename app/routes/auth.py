@@ -14,11 +14,21 @@ bp = Blueprint('auth', __name__, template_folder='templates/auth')
 
 # Anti-brute-force: no máximo MAX_FALHAS tentativas erradas POR CONTA dentro da
 # JANELA. Um login bem-sucedido zera a contagem (não pune quem acertou depois).
-# É por conta (usuario_id), e não por IP, de propósito: a app roda atrás de
-# proxy (nginx/Cloudflare) sem ProxyFix, então request.remote_addr é o IP do
-# proxy — igual para todo mundo. Travar por IP travaria a escola inteira.
+# Principal é por conta (usuario_id), não por IP: a app roda atrás de proxy
+# (nginx/Cloudflare), e travar todo mundo atrás do mesmo IP/NAT (ex.: a rede
+# da própria escola) travaria a escola inteira por causa de uma pessoa
+# errando a senha. O CloudflareProxyFix (app.py) já captura o IP real de
+# cada visitante — usado abaixo só como camada EXTRA (limiar bem mais alto),
+# pra pegar credential-stuffing sem esse risco.
 JANELA_LOGIN = timedelta(minutes=15)
 MAX_FALHAS = 5
+
+# Camada extra: limite por IP, bem mais alto que o de conta, pra pegar
+# credential-stuffing (testar várias contas a partir do mesmo lugar) sem
+# travar a escola inteira quando várias pessoas erram a senha atrás do
+# mesmo IP/NAT (ex.: rede da própria escola, ou o proxy antes do
+# CloudflareProxyFix capturar o IP real de cada um).
+MAX_FALHAS_IP = 20
 
 
 def _next_seguro(target):
@@ -55,6 +65,21 @@ def _conta_bloqueada(db, usuario_id):
     return falhas >= MAX_FALHAS
 
 
+def _ip_bloqueado(db, ip):
+    """True se o IP acumulou muitas falhas recentes, mesmo espalhadas entre
+    contas diferentes (ou usuários inexistentes) — pega tentativa de força
+    bruta/credential-stuffing testando vários logins do mesmo lugar."""
+    if not ip:
+        return False
+    limite = datetime.utcnow() - JANELA_LOGIN
+    falhas = (
+        db.query(Acesso)
+          .filter(Acesso.ip == ip, Acesso.sucesso.is_(False), Acesso.timestamp >= limite)
+          .count()
+    )
+    return falhas >= MAX_FALHAS_IP
+
+
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     # se já estiver logado, envia ao dashboard
@@ -67,6 +92,14 @@ def login():
         ip = request.remote_addr
 
         with SessionLocal() as db:
+            # trava o IP por excesso de falhas espalhadas entre contas (antes
+            # até de saber se o usuário existe) — pega quem testa vários
+            # logins na sequência a partir do mesmo lugar.
+            if _ip_bloqueado(db, ip):
+                flash('Muitas tentativas de login vindas deste endereço. '
+                      'Aguarde alguns minutos e tente novamente.', 'danger')
+                return render_template('auth/login.html')
+
             user = db.query(Usuario).filter_by(username=username).first()
 
             # trava a CONTA por excesso de tentativas erradas (antes de conferir

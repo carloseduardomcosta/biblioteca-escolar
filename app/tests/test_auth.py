@@ -5,7 +5,7 @@ import pytest
 import config.settings as settings
 from models.usuario import Usuario
 from models.acesso import Acesso
-from routes.auth import _next_seguro, _conta_bloqueada, MAX_FALHAS
+from routes.auth import _next_seguro, _conta_bloqueada, _ip_bloqueado, MAX_FALHAS, MAX_FALHAS_IP
 
 
 @pytest.mark.parametrize('alvo, esperado', [
@@ -23,9 +23,9 @@ def test_next_seguro_bloqueia_open_redirect(alvo, esperado):
     assert _next_seguro(alvo) == esperado
 
 
-def _add_acesso(db, uid, sucesso, min_atras):
+def _add_acesso(db, uid, sucesso, min_atras, ip='x'):
     db.add(Acesso(
-        usuario_id=uid, sucesso=sucesso, ip='x', user_agent='t',
+        usuario_id=uid, sucesso=sucesso, ip=ip, user_agent='t',
         timestamp=datetime.utcnow() - timedelta(minutes=min_atras),
     ))
     db.commit()
@@ -58,3 +58,30 @@ def test_conta_bloqueada_ignora_falhas_antigas(escola_id):
         for _ in range(MAX_FALHAS + 2):
             _add_acesso(db, uid, False, 30)
         assert _conta_bloqueada(db, uid) is False
+
+
+def test_ip_bloqueado_apos_limite_espalhado_entre_contas(escola_id):
+    """Muitas falhas do MESMO IP em contas DIFERENTES (ou inexistentes,
+    usuario_id=None) também bloqueia — pega credential-stuffing."""
+    with settings.SessionLocal() as db:
+        u1 = Usuario(username='c1', escola_id=escola_id, password_hash='x')
+        u2 = Usuario(username='c2', escola_id=escola_id, password_hash='x')
+        db.add_all([u1, u2]); db.commit()
+
+        # abaixo do limite → não bloqueia
+        for _ in range(MAX_FALHAS_IP - 1):
+            _add_acesso(db, u1.id, False, 1, ip='1.2.3.4')
+        assert _ip_bloqueado(db, '1.2.3.4') is False
+
+        # completa o limite espalhando entre contas (inclusive inexistente)
+        _add_acesso(db, u2.id, False, 1, ip='1.2.3.4')
+        assert _ip_bloqueado(db, '1.2.3.4') is True
+
+        # outro IP não é afetado
+        assert _ip_bloqueado(db, '9.9.9.9') is False
+
+
+def test_ip_bloqueado_nao_trava_ip_vazio(escola_id):
+    with settings.SessionLocal() as db:
+        assert _ip_bloqueado(db, None) is False
+        assert _ip_bloqueado(db, '') is False
