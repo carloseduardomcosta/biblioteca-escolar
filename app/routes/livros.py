@@ -311,10 +311,10 @@ def novo_livro():
                 # exemplar único: usa o código informado no formulário
                 itens = [(codigo, titulo)]
             else:
-                # vários exemplares iguais: título recebe sufixo "- N"; os
-                # códigos reaproveitam os vãos livres da numeração.
+                # vários exemplares iguais: mesmo título em todos (o código já
+                # distingue cada exemplar); códigos reaproveitam os vãos livres.
                 codigos = _proximos_codigos(db, _escola_id(), qtd)
-                itens = [(codigos[i], f'{titulo} - {i + 1}') for i in range(qtd)]
+                itens = [(codigos[i], titulo) for i in range(qtd)]
             for cod_i, tit_i in itens:
                 _mk(cod_i, tit_i, db)
             try:
@@ -375,14 +375,15 @@ def editar_livro(codigo):
     """
     if request.method == 'POST':
         titulo_in = request.form['titulo'].strip()
-        # Exemplares iguais: se o total informado for > 1, este vira "- 1" e o
-        # restante é criado em sequência (títulos "- 2", "- 3"..., códigos padrão).
+        # Exemplares iguais: todos ficam com o MESMO título (o código já
+        # distingue cada exemplar); se o total informado for > 1, cria o
+        # restante em sequência (títulos idênticos, códigos novos).
         try:
             total = int(request.form.get('total_exemplares', '1'))
         except (TypeError, ValueError):
             total = 1
         total = max(1, min(total, 50))
-        base = re.sub(r'\s*-\s*\d+\s*$', '', titulo_in).strip()   # remove sufixo "- N" se houver
+        base = re.sub(r'\s*-\s*\d+\s*$', '', titulo_in).strip()   # remove sufixo antigo "- N", se ainda houver
 
         pasta = os.path.join(current_app.static_folder, 'barcodes')
         os.makedirs(pasta, exist_ok=True)
@@ -402,7 +403,7 @@ def editar_livro(codigo):
                 livro.politica = _parse_politica(request.form.get('politica'), livro.politica)
             if request.form.get('espessura'):
                 livro.espessura = _parse_espessura(request.form.get('espessura'), livro.espessura)
-            livro.titulo = f'{base} - 1' if total >= 2 else titulo_in
+            livro.titulo = base if total >= 2 else titulo_in
 
             novos = []
             if total >= 2:
@@ -411,7 +412,7 @@ def editar_livro(codigo):
                     arq = gerar_barcode(cod, pasta)
                     db.add(Livro(
                         escola_id=livro.escola_id, codigo=cod,
-                        titulo=f'{base} - {i + 2}', autor=livro.autor,
+                        titulo=base, autor=livro.autor,
                         ano_publicacao=livro.ano_publicacao, categoria=livro.categoria,
                         situacao='disponível', politica=livro.politica,
                         espessura=livro.espessura, barcode_img=arq,
