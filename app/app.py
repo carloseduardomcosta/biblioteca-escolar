@@ -1,6 +1,7 @@
 import calendar
 from sqlalchemy import func
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 from config.settings import engine, Base, SessionLocal
 from routes.alunos import bp as alunos_bp
 from routes.livros import bp as livros_bp
@@ -111,8 +112,18 @@ def create_app(testing=False):
     app.register_blueprint(emprestimos_bp,url_prefix='/emprestimos')
     app.register_blueprint(users_bp)
     app.register_blueprint(auditoria_bp)
-    
-    
+
+    # Timestamps são gravados em UTC (datetime.utcnow) no banco; o filtro
+    # converte para o fuso da escola só na hora de exibir (ex.: auditoria).
+    FUSO_LOCAL = ZoneInfo('America/Sao_Paulo')
+
+    @app.template_filter('localtime')
+    def localtime_filter(dt):
+        if dt is None:
+            return dt
+        return dt.replace(tzinfo=timezone.utc).astimezone(FUSO_LOCAL)
+
+
     @app.context_processor
     def inject_user():
         return dict(current_user=current_user)

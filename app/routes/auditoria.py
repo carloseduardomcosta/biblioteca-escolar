@@ -1,5 +1,6 @@
 # routes/auditoria.py — trilha de auditoria, acesso restrito a administradores.
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from config.settings import SessionLocal
@@ -17,6 +18,15 @@ bp = Blueprint(
 # Limite de linhas por consulta — evita carregar um histórico enorme de uma vez.
 # A tabela usa DataTables no front (busca/ordenação client-side dentro desse lote).
 LIMITE = 1000
+
+# Os timestamps são gravados em UTC (datetime.utcnow); os filtros de data vêm
+# do <input type=date> em horário local — convertidos aqui antes de comparar.
+FUSO_LOCAL = ZoneInfo('America/Sao_Paulo')
+
+
+def _local_para_utc_naive(dt_local):
+    """Meia-noite local -> datetime UTC naive (mesmo formato do que está no banco)."""
+    return dt_local.replace(tzinfo=FUSO_LOCAL).astimezone(timezone.utc).replace(tzinfo=None)
 
 ACOES = ['criar', 'editar', 'excluir', 'importar', 'emprestar', 'devolver', 'renovar']
 ENTIDADES = ['livro', 'aluno', 'usuario', 'emprestimo']
@@ -61,12 +71,13 @@ def listar_atividades():
             query = query.filter(LogAtividade.usuario_nome.ilike(f'%{f_usuario}%'))
         if f_data_ini:
             try:
-                query = query.filter(LogAtividade.timestamp >= datetime.strptime(f_data_ini, '%Y-%m-%d'))
+                ini = _local_para_utc_naive(datetime.strptime(f_data_ini, '%Y-%m-%d'))
+                query = query.filter(LogAtividade.timestamp >= ini)
             except ValueError:
                 pass
         if f_data_fim:
             try:
-                fim = datetime.strptime(f_data_fim, '%Y-%m-%d') + timedelta(days=1)
+                fim = _local_para_utc_naive(datetime.strptime(f_data_fim, '%Y-%m-%d') + timedelta(days=1))
                 query = query.filter(LogAtividade.timestamp < fim)
             except ValueError:
                 pass

@@ -56,7 +56,7 @@
       {% for item in acessos %}
         {% set a = item.acesso %}
         <tr>
-          <td class="text-nowrap">{{ a.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="text-nowrap">{{ (a.timestamp|localtime).strftime('%d/%m/%Y %H:%M') }}</td>
           <td>{{ item.username }}</td>
           <td>
             {% if a.sucesso %}

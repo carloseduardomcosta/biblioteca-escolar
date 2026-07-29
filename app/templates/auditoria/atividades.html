@@ -76,7 +76,7 @@
     <tbody>
       {% for log in logs %}
         <tr>
-          <td class="text-nowrap">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="text-nowrap">{{ (log.timestamp|localtime).strftime('%d/%m/%Y %H:%M') }}</td>
           <td>{{ log.usuario_nome or '—' }}</td>
           <td><span class="badge bg-{{ _CORES.get(log.acao, 'secondary') }}">{{ log.acao }}</span></td>
           <td>{{ log.entidade }}</td>
