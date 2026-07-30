@@ -52,16 +52,24 @@ def test_filtro_por_acao(client, session, escola_id):
 
 
 def test_filtro_por_data(client, session, escola_id):
+    """O filtro de data interpreta a string como data LOCAL (America/Sao_Paulo),
+    igual o <input type=date> do navegador manda. Usa meio-dia local (não
+    'agora') pro timestamp 'recente' pra não cair na janela de ~3h por dia
+    (21h-0h local) em que 'hoje' em UTC e 'hoje' local divergem."""
+    from zoneinfo import ZoneInfo
+    agora_local = datetime.now(ZoneInfo('America/Sao_Paulo'))
+    hoje_local = agora_local.strftime('%Y-%m-%d')
+    meio_dia_utc = (agora_local.replace(hour=12, minute=0, second=0, microsecond=0)
+                                .astimezone(ZoneInfo('UTC')).replace(tzinfo=None))
     session.add_all([
         LogAtividade(escola_id=escola_id, usuario_nome='a',
                      timestamp=datetime.utcnow() - timedelta(days=10),
                      acao='criar', entidade='livro', descricao='log antigo'),
-        LogAtividade(escola_id=escola_id, usuario_nome='a', timestamp=datetime.utcnow(),
+        LogAtividade(escola_id=escola_id, usuario_nome='a', timestamp=meio_dia_utc,
                      acao='criar', entidade='livro', descricao='log recente'),
     ])
     session.commit()
-    hoje = datetime.utcnow().strftime('%Y-%m-%d')
-    resp = client.get(f'/auditoria/?data_inicio={hoje}')
+    resp = client.get(f'/auditoria/?data_inicio={hoje_local}')
     html = resp.get_data(as_text=True)
     assert 'log recente' in html and 'log antigo' not in html
 
