@@ -142,6 +142,14 @@ abrir de verdade no navegador mas o sistema já marcou como impresso (fila zerou
 ter saído), use **↩️ Marcar selecionadas como pendente** — devolve os livros marcados pra fila,
 sem precisar reimprimir um por um.
 
+> **Nota técnica:** as três ações de impressão enviam o PDF via **POST** (nunca um link `GET`
+> direto) e com `mimetype` genérico (`application/octet-stream`, não `application/pdf`). Motivo:
+> em alguns navegadores (Chrome observado em produção), uma resposta de download vinda de uma
+> navegação `GET` pode ser aberta no visualizador de PDF embutido — que às vezes falha e mostra
+> uma aba em branco, mesmo com o arquivo chegando 100% íntegro. Resposta de `POST` é tratada como
+> download direto, sem essa tentativa de pré-visualização. Se algum dia adicionar um novo jeito
+> de baixar etiquetas, siga o mesmo padrão (form POST, não `<a href>`).
+
 ## 🌐 Publicação (proxy reverso)
 
 A aplicação escuta em `127.0.0.1:65000`. Em produção, coloque um proxy reverso
