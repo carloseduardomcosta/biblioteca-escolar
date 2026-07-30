@@ -668,13 +668,13 @@ def _pdf_etiquetas_dobraveis(livros, pasta):
 
 
 def _responder_pdf(buffer, nome):
-    # Voltou a ser 'application/pdf' (era octet-stream numa tentativa anterior):
-    # testado ponta a ponta (app → nginx → Cloudflare) e o arquivo sempre chega
-    # perfeito e completo — o problema é depois disso, na rede/computador de
-    # quem baixa. octet-stream não ajudou e pode até atrapalhar: filtro de
-    # conteúdo/antivírus de rede escolar costuma desconfiar mais de um binário
-    # genérico do que de um PDF reconhecido.
-    return send_file(buffer, as_attachment=True, download_name=nome, mimetype='application/pdf')
+    # Confirmado (log do nginx): o arquivo chega inteiro e correto no navegador
+    # (200, corpo completo) — quem falha é o VISUALIZADOR de PDF embutido do
+    # Chrome, abrindo uma aba e não mostrando nada. mimetype genérico força o
+    # navegador a baixar puro e simples, sem tentar pré-visualizar em lugar
+    # nenhum (o nome ainda termina em .pdf, abre normal depois de baixado).
+    return send_file(buffer, as_attachment=True, download_name=nome,
+                      mimetype='application/octet-stream')
 
 
 @bp.route('/triagem', methods=['GET', 'POST'])
