@@ -24,7 +24,7 @@
           </a>
         </li>
         <li>
-          <a class="dropdown-item" href="{{ url_for('livros.etiquetas_pendentes') }}" target="_blank">
+          <a class="dropdown-item" href="{{ url_for('livros.etiquetas_pendentes') }}">
             🏷️ Imprimir pendentes{% if pendentes %} ({{ pendentes }}){% endif %}
           </a>
         </li>
@@ -42,7 +42,7 @@
         </li>
         <li>
           <a class="dropdown-item text-muted" href="{{ url_for('livros.exportar_livros_pdf') }}"
-             target="_blank" onclick="return confirm('Reimprimir as etiquetas de TODO o acervo?');">
+             onclick="return confirm('Reimprimir as etiquetas de TODO o acervo?');">
             Reimprimir todas
           </a>
         </li>
@@ -206,11 +206,10 @@ function toggleAll(cb){
   $('#livrosTable').DataTable().$('input.sel-livro').prop('checked', cb.checked);
 }
 // monta e envia um form POST com os códigos marcados (pega de todas as páginas do DataTable)
-function _enviarComSelecionadas(action, marcadas, novaAba){
+function _enviarComSelecionadas(action, marcadas){
   var form = document.createElement('form');
   form.method = 'post';
   form.action = action;
-  if (novaAba) form.target = '_blank';
   // token CSRF (form gerado via JS não herda o campo oculto do template)
   var tok = document.createElement('input');
   tok.type = 'hidden'; tok.name = 'csrf_token';
@@ -225,14 +224,14 @@ function _enviarComSelecionadas(action, marcadas, novaAba){
   form.submit();
 }
 
-// gera o PDF só das etiquetas marcadas (nova aba — se der problema, a lista continua aberta)
+// gera o PDF só das etiquetas marcadas
 function imprimirSelecionadas(){
   var marcadas = $('#livrosTable').DataTable().$('input.sel-livro:checked');
   if (marcadas.length === 0) {
     alert('Selecione ao menos uma etiqueta na coluna ✓.');
     return;
   }
-  _enviarComSelecionadas('{{ url_for("livros.etiquetas_selecionadas") }}', marcadas, true);
+  _enviarComSelecionadas('{{ url_for("livros.etiquetas_selecionadas") }}', marcadas);
 }
 
 // socorro: volta as marcadas pra fila de pendentes (etiqueta não saiu de verdade)
