@@ -24,9 +24,12 @@
           </a>
         </li>
         <li>
-          <a class="dropdown-item" href="{{ url_for('livros.etiquetas_pendentes') }}">
-            🏷️ Imprimir pendentes{% if pendentes %} ({{ pendentes }}){% endif %}
-          </a>
+          <form method="post" action="{{ url_for('livros.etiquetas_pendentes') }}" class="m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="dropdown-item">
+              🏷️ Imprimir pendentes{% if pendentes %} ({{ pendentes }}){% endif %}
+            </button>
+          </form>
         </li>
         <li>
           <button type="button" class="dropdown-item" onclick="imprimirSelecionadas()">
@@ -41,10 +44,13 @@
           </button>
         </li>
         <li>
-          <a class="dropdown-item text-muted" href="{{ url_for('livros.exportar_livros_pdf') }}"
-             onclick="return confirm('Reimprimir as etiquetas de TODO o acervo?');">
-            Reimprimir todas
-          </a>
+          <form method="post" action="{{ url_for('livros.exportar_livros_pdf') }}" class="m-0"
+                onsubmit="return confirm('Reimprimir as etiquetas de TODO o acervo?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="dropdown-item text-muted">
+              Reimprimir todas
+            </button>
+          </form>
         </li>
       </ul>
     </div>

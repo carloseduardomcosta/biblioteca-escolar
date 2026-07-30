@@ -711,7 +711,7 @@ def triagem_etiquetas():
     return render_template('livros/triagem.html', pendentes=pendentes)
 
 
-@bp.route('/etiquetas/pendentes', methods=['GET'])
+@bp.route('/etiquetas/pendentes', methods=['GET', 'POST'])
 def etiquetas_pendentes():
     """Imprime as etiquetas dos livros AINDA NÃO etiquetados (fila de produção)
     e marca-os como impressos. Imprima quando juntar um lote (encher a folha)."""
@@ -735,7 +735,7 @@ def etiquetas_pendentes():
     return _responder_pdf(buffer, 'etiquetas-pendentes.pdf')
 
 
-@bp.route('/export/pdf', methods=['GET'])
+@bp.route('/export/pdf', methods=['GET', 'POST'])
 def exportar_livros_pdf():
     """Reimprime as etiquetas de TODO o acervo (fallback). Também marca tudo como impresso."""
     pasta = os.path.join(current_app.static_folder, 'barcodes')
